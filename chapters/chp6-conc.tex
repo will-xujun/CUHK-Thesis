@@ -1,0 +1,11 @@
+% !TEX root = ../thesis.tex
+
+\chapter{Conclusion}
+
+\label{chp:conc}
+
+This thesis has explored formalization of \GLs{} and its cousins in the syntactic semantical worlds. Emphasis has been made towards rapid progress into establishing an equiexpressiveness formal proof between \GLs{} and \rlGL{}. Mistake in the original mathematics work has been discovered and fixed, but as a result only half the equiexpressiveness is formally proven. Moreover, it has been discovered during the formalization process that speed is not always the best thing to chase after, because important logical links may be hidden in SMT automations.
+
+We outline some possibilities for future work.
+
+The most interesting side-piece of mathematical work during this development is the generalized Beki\v{c} principle, that has never been stated or proved. With a closed-form coordinate-wise nested fixpoint expression, applications could be sought in different domains involving vectorial fixpoints. One interesting example is the in-lining of mutual recursion in an imperative programming language. Sabotage is the minimal construction added to \GL{} that makes it equiexpressive to $\Lmu{}$, and the specific translation from $\Lmu{}$ to \GLs{} that has not been explored in this thesis is based on imperative programming concept. It uses sabotage as a way to pass information to Angel during a nondeterministic repetition, whether this loop should terminate or not. This enhances repetition games to guarded iteration and makes it powerful enough to encode right-linear recursion. Such sabotage repetition games are given mutually recursive denotational semantics in terms of vectorial fixpoints, and their translation to nested recursion programmes may offer optimizations. However, it is unclear at this stage what optimizations could entail.

@@ -1,0 +1,725 @@
+% !TEX root = ../thesis.tex
+
+\chapter{Preliminaries} \label{chp:preliminaries}
+
+This section introduces the syntax and semantics of the various logics involved in this thesis, namely the ones abbreviated in \autoref{sec:notation}.
+
+While fixpoint such as the ones expressed by $\Lmu{}$ can be understood in terms of parity game solving, such understanding remains semantical. This landscape was changed when \GL{} was proposed by Parikh as a syntactical game counterpart for $\Lmu{}$ \cite{Parikh1983}. In a sense, games are lifted from the semantical world to the syntactical world, and we can now express fixpoints in explicit iteration games.
+
+The expressivity of \GL{} in relation to $\Lmu{}$ remained unclear until Wafa and Platzer extended \GL{} in 2024 with sabotage \cite{Wafa_2024}. The resulting logic, \GLs{}, has semantic-preserving two-way translations with $\Lmu{}$ and the pair is therefore equiexpressive. This work illuminates the missing piece in \GL{} that limits its expressive power, and hints at an excitingly new way of expressing formal properties in terms of explicit \textit{syntactical} games.
+
+\section{Game Logic with Sabotage}
+\label{sec:Prelim_GLs}
+
+As mentioned in \autoref{sec:intro_GLs}, \GLs{} is an extension of Parikh's game logic \GL{} with sabotage mechanism. Sabotage is syntactically realized by the $\sim a$ operator. The significance of this operator is that it provides the minimal mechanism for encoding binary values, allowing translation from structured recursion into guarded repetition, as we will see in \autoref{chp:meta_fml}. This increases the expressiveness of naïve repetition to exactly equal that of $\Lmu{}$. The syntax of \GLs{} is as follows.
+
+\begin{center}
+    \begin {bnf}
+        $\phi$, $\psi$ :\textsf{Formula} ::=
+        | P : atomic formula
+        | $\neg$ $\phi$ : negation
+        | $\phi \vee\psi$ : disjunction
+        | $\langle\alpha\rangle \psi$ : modal formula
+        ;;
+        $\alpha$, $\beta$ :\textsf{Game} ::=
+        | $a$ : atomic game
+        | $\sim \alpha$ : Angelic sabotage
+        | $a^d$ : dual
+        | $?\phi$ : Angelic test
+        | $\alpha\cup\beta$ : Angelic choice
+        | $\alpha$ ; $\beta$ : sequence
+        | $\alpha^*$ : Angelic repetition
+    \end{bnf}
+\end{center}
+
+Among the games, $\alpha^*$ means Angel has the right to repeat $\alpha$ any finite number of times until she decides to stop. The effect of sabotage $\sim a$ is a rule change in subsequent plays of a: if Demon plays it when previously sabotage by Angel, then he loses immediately. When Angel plays it, however, it gets skipped. This mechanism allows for dynamic rule changes that cannot be predicted statically. Indeed, consider a repetition game $\alpha^*$ where $\alpha$ contains different sabotage actions. Then Angel can pick what to sabotage and how many rounds to repeat $\alpha$, potentiating various sabotage contexts that cannot be determined before each play is actuated.
+
+\begin{example}
+\label{ex:GLs_notnormal}
+    An example \GLs{} formula is 
+    \begin{equation}
+        \label{eqn:example_GLs}
+            \langle\Dual{((\Dual{\sim a} \cap \Dual{\sim b} ; \sim a\cup \sim b; a\cup b)^*)}\rangle P
+    \end{equation}
+\end{example}
+
+It is the dual of a repetition game controlled by Angel. Inside this game, a player sabotages either $a$ or $b$, then the opponent sabotages back the same games. Then the player chooses to play $a$ or $b$. Player could mean Angel or Demon depending on how many $\Dual{}$ it is wrapped around, and can be made clear by normalizing. The formula as-is is not in normal form because of the top-level $\Dual{}$ operator.
+
+\subsection{Normal Form}
+Given a dual \GLs{} game $\Dual{\alpha}$ and a negation formula $\neg \phi$, one can recursively apply De Morgan's law to push the dual and negation operators downwards. The result is an enriched grammar given by
+\begin{center}
+\begin{bdefinition}[Enriched \GLs{} Syntax]
+\label{def:GLs_syntax}
+\texttt{GLs\_game, GLs\_fml}
+
+    \begin {bnf}
+        $\phi$, $\psi$ :\texttt{GLs\_game} ::=
+        | P : atomic formula
+        | $\neg$ P : atomic negation
+        | $\phi \vee\psi$ : disjunction
+        | $\phi \wedge \psi$ : conjunction
+        | $\langle\alpha\rangle \psi$ : modal formula
+        ;;
+        $\alpha$, $\beta$ :\texttt{GLs\_fml} ::=
+        | $a$ : atomic game
+        | $\Dual{a}$ : atomic dual
+        | $?\phi$ : Angelic test
+        | $\DTest \phi$ : Demonic test
+        | $\alpha\cup\beta$ : Angelic choice
+        | $\alpha\cap\beta$ : Demonic choice
+        | $\alpha$ ; $\beta$ : sequence
+        | $\alpha^*$ : Angelic repetition
+        | $\alpha^\times$ : Demonic repetition
+    \end{bnf}
+\end{bdefinition}
+\end{center}
+
+From this enriched grammar we have a notion of normal form. Intuitively, an \GLs{} game is in normal form if $\Dual{\cdot}$ does not appear over places other than atomic games, and an \GLs{} formula in enriched grammar is in normal form if $\langle \alpha\rangle \psi$ has $\alpha, \psi$ are both in normal form. This raises the question of recursion since $\psi$ is required to be normal in the first place. To be precise, let $NG_s$ be the set of \GLs{} normal form games and $NF_s$ be \GLs{} normal form formulas. They are given by closure under the inductive constructors given below:
+
+\begin{bdefinition}[\GLs{} Normal Form]
+\label{def:GLs_nml_gm_GLs_nml_fml}
+\texttt{GLs\_nml\_gm, GLs\_nml\_fml}
+
+\begin{mathpar}
+\inferrule*[Right=AtmGame]{a \text{ atomic game}}{a \in NG_s}
+\\
+\inferrule*[Right=Test]{f\in NF_s}{\Test{f} \in NG_s}
+\and
+\inferrule*[Right=DTest]{f\in NF_s}{\DTest f \in NG_s}
+\and
+\inferrule*[Right=Choice]{g\in NG_s \\ h \in NG_s}{g\cup h \in NG_s}
+\\
+\inferrule*[Right=DChoice]{g\in NG_s \\ h \in NG_s}{g\cap h \in NG_s}
+\and
+\inferrule*[Right=Seq]{g\in NG_s \\ h \in NG_s}{g ; h \in NG_s}
+\\
+\inferrule*[Right=Rec]{g\in NG_s}{\Rec x. g \in NG_s}
+\and
+\inferrule*[Right=DRec]{g\in NG_s}{\DRec x. g \in NG_s}
+\\
+\inferrule*[Right=AtmFml]{P\text{ atomic formula}}{P \in NF_s}
+\and
+\inferrule*[Right=NotAtmFml]{P\text{ atomic formula}}{\neg P \in NF_s}
+\\
+\inferrule*[Right=Or]{f\in NF_s \\ g \in NF_s}{f\vee g \in NF_s}
+\and
+\inferrule*[Right=And]{f\in NF_s \\ g \in NF_s}{f\wedge g \in NF_s}
+\\
+\inferrule*[Right=Diam]{\alpha \in NG_s \\ f\in NF_s}{\langle\alpha\rangle f \in NF_s}
+\end{mathpar}
+\end{bdefinition}
+
+The conversion from an \GLs{} formula to its normal form depends on a syntactic dual operator $\syd_s(\cdot)$ on the enriched games and a syntactic complement $\overline{(\cdot)}$ operator on enriched formulas. This is given recursively as follows:
+
+
+\medskip
+
+\begin{bdefinition}[\GLs{} Syntactic Dual and Complement]
+\texttt{GLs\_sy\_dual, GLs\_sy\_comp}
+
+\begin{tabular}{l l l}
+ $\syd_s(a)=\Dual{a}$ 
+ & $\syd_s(\Dual{\alpha})=\alpha$ 
+ & \\
+ $\syd_s(\alpha \cap \beta) = \syd_s(\alpha) \cup \syd_s(\beta)$
+ & $\syd_s(\alpha\cup\beta)=\syd_s(\alpha)\cap \syd_s(\beta)$ 
+ & \\
+ $\syd_s(\Test\phi)=\DTest\phi$ 
+ & $\syd_s(\DTest \phi)=\Test\phi$ 
+ & \\ 
+ $\syd_s(\alpha^*) = \alpha^\times$ & $\syd_s(\alpha^\times) = \alpha^\star$
+
+\medskip \\
+
+ $\overline{P} = \neg P$ 
+ & $\overline{\neg f} = f$ \\
+ $\overline{f \vee g} = \overline{f} \wedge \overline{g}$
+ & $\overline{f \wedge g} = \overline{f} \vee \overline{g}$ \\
+ $\overline{\langle\alpha\rangle f} = \langle \syd_s(\alpha)\rangle \overline{f}$
+\end{tabular}    
+\end{bdefinition}
+
+
+\medskip
+
+
+
+The new connectives are $\DTest, \cap, \DRec, \wedge$. They are equivalent to the following formulas using the original connectives:
+
+\begin{align*}
+    \alpha \cap \beta &\equiv \Dual{(\Dual{\alpha} \cup \Dual{\beta})} \\
+    \alpha^\times &\equiv \Dual{((\Dual{\alpha})^*)} \\
+    \DTest f &\equiv \Dual{(\Test f)}
+\end{align*}
+
+After semantics is introduced, one can prove their semantical equivalence.
+
+The converison of an \GLs{} expression into normal form is given by replacing each dual operator $\Dual{\cdot}$ by the syntactic dual $\syd_s$ and replacing $\neg$ with syntactic complement. It is mutually recursively defined over enriched \RGL{} games and formulas, named $n_{Gs}$ and $n_{Fs}$ respectively. 
+
+\begin{bdefinition}[\GLs{} Normalization]
+\texttt{GLs\_normalize\_gm, GLs\_normalize\_fml}
+
+\begin{tabular}{l l l}
+  $n_{Gs}(a)=a$ 
+  & $n_{Gs}(x)=x$ \\
+    $n_{Gs}(\Dual{\alpha})= \syd(n_{Gs}(\alpha))$ \\
+   $n_{Gs}(\Test \phi)= \Test(n_{Fs}(\phi))$ 
+   & $n_{Gs}(\DTest \phi)= \DTest(n_{Fs}(\phi))$ \\
+   $n_{Gs}(\alpha\cup\beta)=n_{Gs}(\alpha)\cup n_{Gs}(\beta)$ 
+   & $n_{Gs}(\alpha\cap\beta)=n_{Gs}(\alpha)\cap n_{Gs}(\beta)$ \\
+   $n_{Gs}(\alpha ; \beta) = n_{Gs}(\alpha);n_{Gs}(\beta)$
+   & $n_{Gs}(\Rec x.\alpha)= \Rec x.n_{Gs}(\alpha)$ \\
+   $n_{Gs}(\DRec x.\alpha)= \DRec x.n_{Gs}(\alpha)$ \\
+   $n_{Fs}(P) = P$
+   & $n_{Fs}(\neg f) = \overline{n_{Fs}(f)}$ \\
+    $n_{Fs}(f\vee g) = n_{Fs}(f)\wedge n_{Fs}(g)$ 
+   & $n_{Fs}(f\wedge g) = n_{Fs}(f)\wedge n_{Fs}(g)$ \\
+   $n_{Fs}(\langle\alpha\rangle f) = \langle n_{Gs}(\alpha)\rangle n_{Fs}(f)$
+\end{tabular}
+\end{bdefinition}
+
+We have a well-definedness lemma for the normalization operations.
+
+\begin{blemma}[\GLs{} Normal after Syntactic Dual] \texttt{GLs\_nml\_sy\_dual\_\_nml}
+\label{lem:GLs_syd_nml}
+
+Let $g$ be an \GLs{} game and $f$ be an \GLs{} formula.
+
+\begin{enumerate} 
+    \item If $g\in NG_s$, then $n_{Gs}(g)\in NG_s$.
+    \item If $f\in NF_s$, then $n_{Fs}(f)\in NF_s$.
+\end{enumerate}
+\end{blemma}
+\begin{proof}
+By mutual induction on the derivation tree of $NG_s$ and $NF_s$.
+\end{proof}
+
+\begin{blemma}[\GLs{} Normal after Normalizing] \texttt{GLs\_normalize\_nml}
+
+Let $g$ be an \GLs{} game and $f$ be an \GLs{} formula.
+\label{lem:GLs_normalize_nml}
+\begin{enumerate} 
+    \item For any \GLs{} game $g$, $n_{Gs}(g)\in NG_s$.
+    \item For any \GLs{} formula $f$, $n_{Fs}(f)\in NF_s$.
+\end{enumerate}
+\end{blemma}
+\begin{proof}
+    By structural induction on $g$ and $f$, using \autoref{lem:GLs_syd_nml} in the process.
+\end{proof}
+
+We demonstrate the normalization procedure on \autoref{ex:GLs_notnormal}.
+\begin{align*}
+        & \langle\Dual{((\Dual{\sim a} \cap \Dual{\sim b} ; \sim a\cup \sim b; a\cup b)^*)}\rangle P \\
+    \mapsto & \langle(\sim a \cup \sim b ; \Dual{\sim a}\cap \Dual{\sim b}; \Dual{a}\cap \Dual{b})^\times\rangle P
+\end{align*}
+
+\subsection{Game Logic}
+Game logic \GL{} is obtained from \GLs{} grammar \autoref{def:GLs_syntax} by removing sabotage $\sim a$. Normal forms can be defined in a corresponding way. 
+
+\subsection{Semantics}
+\label{subsec:GLs_sem}
+Processes are normally represented as labeled state transition graphs or Kripke structures. Formulas (or predicates) in a process calculus are normally interpreted as subsets of the set of states. Games are interpreted as \textit{predicate-transformers}, that is, operators on the powerset of states. Conforming to the nature of game-playing we interpret our games as strategy operators, that is $interp(g): \calP(States) \rightarrow \calP (States)$ has the following meaning: $interp(g)(A)$ for a given set of goals $A\in \calP (States)$ are the states in which Angel has a strategy to force any play into somewhere in $A$ (but does not have control over which exact states in $A$ - that would depend on Demon). According to the nature of game-playing, $interp(g)$ is a  \textit{monotone} operator, that is, for a game $g$ if $A\subseteq B$ then $interp(g)(A)\subseteq interp(g)(B)$. This is because given a more relaxed set of goals $B$, Angel can use the old strategy for $A$ to force into $B$. 
+
+We denote the powerset over any set as usual by $\calP$. We denote the set of monotone operators over $\calP(S)$ for any set $S$ as $\calW(S)$. We call these operators \textit{effective functions}. We assume the existence of a universal set of atomic games $\bbG$ and a universal set of atomic propositions $\bbP$.
+
+In this thesis, our basic world structure $\calN$ is a generalization of Kripke structures consisting of the following items. In Isabelle it has a polymorphic parameter \texttt{'a}.
+
+\begin{bdefinition}[Monotone Neighborhood Structure] \texttt{'a Nbd\_Struct}
+
+A monotone neighborhood structure consists of the following data:
+
+  \begin{enumerate}
+    \item A set of states $|\calN|$
+    \item An interpretation for atomic games $\calN: \bbG \rightarrow \calW(|\calN|)$
+    \item An interpretation for atomic propositions $\calN: \bbP \rightarrow \calP(|\calN|)$
+\end{enumerate}  
+\end{bdefinition}
+
+
+The name \textit{monotone neighborhood structure} is gotten from an alternative definition using \textit{monotone neighborhood frames}, which we do not introduce in this thesis but is equivalent to our formulation. When mentioning neighborhood structures, we will omit the word ``monotone'' in most parts of this thesis. There is a special class of neighborhood structures that are \textit{relational}, that is, atomic games arise from binary relations over $|\calN|$. We do not need this concept in this thesis, but refer interested readers to \cite{Wafa_2024} for a preliminary account. This concept is a backbone for dealing with algorithmic properties, but \GLs{} has not reached that level of maturity.
+
+A \textit{sabotage context} is a function $c:\mathbb G\rightarrow \{\emptyset, \diamond, \ssquare\}$. It is a record indicating which player has sabotaged which atomic game. $c(a)=\emptyset$ means $a$ is un-sabotaged, $c(a)=\diamond$ means Angel has sabotaged $a$, and $c(a)=\ssquare$ means Demon has sabotaged $a$. Let $\C$ be the set of all contexts (\texttt{ALL\_CX} in Isabelle).
+
+The semantics of $\GLs$ expressions are considered together with sabotage contexts. We require $\widehat\N (g)\in \W(|\N|\times \C)$ () for any \GLs{} game $g$ and $\widehat\N(f)\in \mathcal P (|\N|\times \C)$ for any \GLs{} formula $f$. We define the lifted neighborhood $\widehat\N$ (\texttt{GLs\_lift\_nbd} in Isabelle) using the existing interpretation $\N$ of atomic games and formulas.
+
+\begin{bdefinition}[Projection]
+\texttt{proj\_fst}
+
+    Let $U\subseteq |N|\times \C$. Then $U\restriction_c = \{w\in |\N|:(w,c)\in U \}$. This is the projection of $U$ to the fiber $|\N| \times \{c\}$.
+\end{bdefinition}
+
+To interpret an atomic game $a$, consider its strategy semantics $\N(a)$. the normal rules of $a$ would apply if unsabotaged; so given a goal region $U\subseteq |\N|\times \C$, $\widehat N (a)$ should include $\{(w,c): c(a)=\emptyset \wedge w\in \N(a)(U\restriction _c)\}$. However, if $c(a)=\diamond$, then the game $a$ is skipped, according to the intuitive explanation in \autoref{sec:Prelim_GLs}. The winning region therefore includes exactly those states in $U$ with $c(a)=\diamond$. Nothing contributes to $\widehat {\calN}$ when $c(a)=\ssquare$ because in that context Angel would have lost. We have
+
+\begin{bdefinition}[Lifted Atomic Game Interpretation]
+\texttt{lift\_game\_interp}
+
+$\widehat \N (a) = \{(w,c): (c(a)=\emptyset \wedge w\in \N(a)(U\restriction _c)) \vee (c(a)=\diamond \wedge (w,c)\in U)\}$    
+\end{bdefinition}
+
+
+Next we consider how to interpret an Angel sabotage action $\sim a$. Given a goal set $A\subseteq |\N|\times \C$, the winning region of $\sim a$, denoted $A_a^\diamond$, and dually $A_a^{\ssquare}$, is
+\begin{bdefinition}[Context Substitution]
+\texttt{GLs\_game\_subst, GLs\_game\_Dsubst}
+
+\begin{itemize}
+    \item 
+    $A_a^\diamond = \{(w,c): (w,c\frac{\diamond}{a})\in A\}$ \\
+    \item 
+    $A_a^{\ssquare} = \{(w,c): (w,c\frac{\ssquare}{a})\in A\}$
+\end{itemize}
+\end{bdefinition}
+     
+Recall the sabotage rule: when $\sim a$ is played, only a rule change is applied on subsequent atomic game $a$ (and $\Dual{a}$); \textit{the game ends then}. Hence the winning region must be exactly those immediately falling into $A$, when sabotage status of $a$ is modified to $\diamond$.
+
+We consider how to interpret $\Dual{(\cdot)}$. First we have the dual of a sabotage context as just the switching of Angelic and Demonic sabotage status.
+
+\begin{bdefinition}[Dual Sabotage Context]
+\texttt{dual\_cx}
+
+    Let $c$ be a sabotage context. The dual context $\bar c$ is given by
+    \begin{equation*}
+        \bar c(a) = \begin{cases}
+            \emptyset & \text{if} \ c(a)=\emptyset\\
+            \ssquare & \text{if} \ c(a)=\diamond \\
+            \diamond & \text{if} \ c(a)=\ssquare
+        \end{cases}
+    \end{equation*}
+\end{bdefinition}
+
+The winning regions of $\Dual{a}(U)$ are exactly the regions from which Demon has strategy to force into somewhere in $A$. This is easy for an atomic game $a$. We only need to define a sabotage dual operator $\sabodual{(\cdot)}:\W(|\N|\times \C)\rightarrow \W(|\N|\times \C)$ that achieves the following effect: $(w,c)\in \sabodual{\widehat\N(g)}(U)$ iff
+\begin{enumerate}
+    \item c(a)=$\emptyset$ and $w\in \Dual{(\N(g))}(U\restriction_c)$ or
+    \item c(a)=$\diamond$ or 
+    \item c(a)=$\ssquare$ and $(w,c)\in U$
+\end{enumerate}
+
+This can be achieved with the following technical operations.
+\begin{bdefinition}[Sabotage Complement and Dual]
+\texttt{sabo\_comp, GLs\_dual\_eff\_fn}
+
+    Let $A\subseteq |N|\times \C$. The sabotage complement $\sabocomp{A}$ is given by 
+    \begin{equation}
+        \{(w,c):(w,\bar c)\notin A\}
+    \end{equation}
+    Let $w\in \W(|N|\times \C)$. The sabotage dual $\sabodual{w}$ is given by
+    \begin{equation}
+        \sabodual{w}(A) = \sabocomp{w(\sabocomp{A})}
+    \end{equation}
+\end{bdefinition}
+
+We can prove the following well-definedness result for sabotage complement and duals.
+\begin{blemma}[Well-definedness]
+
+\texttt{lift\_game\_interp\_dual\_simps}
+
+    Let $\N$ be a monotone neighborhood structure. Let $U\subseteq |N|\times \C$. Let $g$ be a \GLs{} game. Then $(w,c)\in \sabodual{\widehat\N(g)}(U)$ iff
+\begin{enumerate}
+    \item c(a)=$\emptyset$ and $w\in \Dual{(\N(g))}(U\restriction_c)$ or
+    \item c(a)=$\diamond$ or 
+    \item c(a)=$\ssquare$ and $(w,c)\in U$
+\end{enumerate}
+\end{blemma}
+\begin{proof}
+    Simply unfold the relevant definitions step by step.
+\end{proof}
+
+We are now able to define the semantics of $\GLs$ compound games and formulas. As per Isabelle requirements, we do so for the enriched set of connectives.
+
+\begin{bdefinition}[$\GLs$ Semantics]
+\texttt{GLs\_game\_sem, GLs\_fml\_sem}
+
+    Let $\N$ be a monotone neighborhood structure. The semantics of a $\GLs$ formula $\phi$ is a set $\N\ddl \phi \ddr_s\in \mathcal P (|\N|\times \C)$. The semantics of a $\GLs$ game $\alpha$ is an effective function $\N\ddl\alpha\ddr_s\in \W(|\N|\times \C)$. They are given mutually recursively by
+    
+    \begin{tabular}{l l}
+        $\N\ddl P\ddr_s = \N(P)\times \C$ 
+        & $\N\ddl \langle\alpha\rangle\phi\ddr_s = \N\ddl\alpha\ddr_s(\N\ddl\alpha\ddr_s)$ \\
+        $\N\ddl \neg\phi\ddr_s = \sabocomp{\N\ddl \phi\ddr_s}$ 
+        & $\N\ddl \phi\vee\psi\ddr=\N\ddl\phi\ddr\cup \N\ddl\psi\ddr$ \\
+        $\N\ddl \phi\wedge\psi\ddr=\N\ddl\phi\ddr\cap \N\ddl\psi\ddr$ \\
+        $\N\ddl a\ddr_s=\widehat\N(a)$ 
+        & $\N\ddl \Test\phi\ddr_s(A)=\N\ddl \phi\ddr_s\cap A$ \\
+        $\N\ddl \DTest\phi\ddr_s(A)=\sabocomp{\N\ddl \phi\ddr_s}\cup A$ \\
+        $\N\ddl \sim a\ddr_s(A)= A^\diamond_a$ 
+        & $\N\ddl \alpha\cup\beta\ddr_s=\N\ddl \alpha\ddr_s \cup \N\ddl \beta\ddr_s$ \\
+        $\N\ddl \alpha\cap\beta\ddr_s=\N\ddl \alpha\ddr_s \cap \N\ddl \beta\ddr_s$ \\
+        $\N\ddl\Dual{g}\ddr_s=\sabodual{\N\ddl g\ddr_s}$ 
+        & $\N\ddl\alpha;\beta\ddr_s=\N\ddl \alpha\ddr_s\circ \N\ddl\beta\ddr_s$ \\
+        $\N\ddl g^*\ddr_s(A)=\mu B.(A\cup \N\ddl \alpha\ddr_s(B))$ 
+        & $\N\ddl g^\times\ddr_s(A)=\nu B.(A\cap \N\ddl \alpha\ddr_s(B))$ \\
+        
+    \end{tabular}
+
+\end{bdefinition}
+
+We can prove that \GLs{} semantics is compatible with syntactic complement and dual. 
+
+\begin{blemma}[Syntax and Semantics Compatible]
+\texttt{GLs\_sy\_comp\_dual\_compat}
+
+Let $f$ be a \GLs{} formula and $g$ be a \GLs{} game.
+
+\begin{enumerate}
+    \item $\N\ddl \overline f\ddr_s = \sabocomp{\N\ddl f\ddr_s} $ \\
+    \item $\N\ddl \syd_s g\ddr_s = \sabodual{\N\ddl g\ddr_s} $
+\end{enumerate}
+\end{blemma}
+\begin{proof}
+    By mutual structural induction on $f$ and $g$.
+\end{proof}
+
+\section{Recursive Game Logic}
+\RGL{} has a generalization of repetition games just as recursive programs generalizes looping programs. However, as a technical intermediary, it is the most complicated logic to formalize because of the presence of variables. General recursion also raises its expressive power to be higher than \GL{}. Its syntax is mutually recursive over games and formulas, and is given by 
+\begin{center}
+    \begin {bnf}
+        $\phi$, $\psi$ :\textsf{Formula} ::=
+        | P : atomic formula
+        | $\neg$ $\phi$ : negation
+        | $\phi \vee\psi$ : disjunction
+        | $\langle\alpha\rangle \psi$ : modal formula
+        ;;
+        $\alpha$, $\beta$ :\textsf{Game} ::=
+        | $a$ : atomic game
+        | x : variable
+        | $\Dual{\alpha}$ : dual
+        | $?\phi$ : Angelic test
+        | $\alpha\cup\beta$ : Angelic choice
+        | $\alpha$ ; $\beta$ : sequence
+        | $\Rec\text{x}. \alpha$ : Angelic recursion
+    \end{bnf}
+\end{center}
+The recursive game $\Rec x.\alpha$ is played as follows. The game $\alpha$ is first played. When $x$ is encountered, remember the current state, and recursively play an instance of a \textit{subgame} $\Rec x. \alpha$. Once a subgame is finished, the players go back to the remembered state of the parent game and play from there.
+
+\begin{example}
+\label{ex:rgl_notnormal}
+    An example \RGL{} formula is 
+    \begin{equation}
+        \label{eqn:example_rgl}
+            \langle\Dual{(\Rec x. a\cup b; x \cup \Test \top )}\rangle P
+    \end{equation}
+\end{example}
+
+Note the resemblance of this formula to \autoref{eqn:example_GLs}. Indeed, if we remove the sabotage actions from that formula, the two formulas have the same meaning. As we will see in the next section, this formula is not in normal form because of the top level $\Dual{(\cdot)}$.
+
+\subsection{Normal Form}
+\label{subsec:RGL_nml}
+Similar to \GLs{} normal form, one can obtain a normal form for \RGL{} expressions by pushing duals and negations downward using De Morgan's. The result is an enriched grammar given by
+\begin{center}
+\begin{bdefinition}[Enriched \RGL{} syntax]
+\label{def:RGL_enriched_syntax}
+\texttt{RGL\_game, RGL\_fml}
+
+    \begin {bnf}
+        $\phi$, $\psi$ :\texttt{RGL\_game} ::=
+        | P : atomic formula
+        | $\neg$ P : atomic negation
+        | $\phi \vee\psi$ : disjunction
+        | $\phi \wedge \psi$ : conjunction
+        | $\langle\alpha\rangle \psi$ : modal formula
+        ;;
+        $\alpha$, $\beta$ :\texttt{RGL\_fml} ::=
+        | $a$ : atomic game
+        | $\Dual{a}$ : atomic dual
+        | x : variable
+        | $\Dual{\text{x}}$ : variable dual
+        | $?\phi$ : Angelic test
+        | $\DTest \phi$ : Demonic test
+        | $\alpha\cup\beta$ : Angelic choice
+        | $\alpha\cap\beta$ : Demonic choice
+        | $\alpha$ ; $\beta$ : sequence
+        | $\Rec\text{x}. \alpha$ : Angelic recursion
+        | $\DRec\text{x}. \alpha$ : Demonic recursion
+    \end{bnf}
+\end{bdefinition}
+\end{center}
+
+Similarly to \GLs{} normal forms, an \RGL{} game is in normal form if $\Dual{\cdot}$ does not appear over places other than variables and atomic games, and an \RGL{} formula in enriched grammar is in normal form if $\langle \alpha\rangle \psi$ has $\alpha, \psi$ are both in normal form. To be precise, let $NG$ be the set of \RGL{} normal form games and $NF$ be \RGL{} normal form formulas. They are given by closure under the inductive constructors given below:
+
+\begin{bdefinition}[\RGL{} Normal Form]
+\label{def:RGL_nml_gm_RGL_nml_fml}
+\texttt{RGL\_nml\_gm, RGL\_nml\_fml}
+
+\begin{mathpar}
+\inferrule*[Right=AtmGame]{a \text{ atomic game}}{a \in NG}
+\and
+\inferrule*[Right=Var]{x \text{ variable}}{x \in NG}
+\and
+\inferrule*[Right=DVar]{x \text{ variable}}{\Dual{x} \in NG}
+\\
+\inferrule*[Right=Test]{f\in NF}{\Test{f} \in NG}
+\and
+\inferrule*[Right=DTest]{f\in NF}{\DTest f \in NG}
+\and
+\inferrule*[Right=Choice]{g\in NG \\ h \in NG}{g\cup h \in NG}
+\\
+\inferrule*[Right=DChoice]{g\in NG \\ h \in NG}{g\cap h \in NG}
+\and
+\inferrule*[Right=Seq]{g\in NG \\ h \in NG}{g ; h \in NG}
+\\
+\inferrule*[Right=Rec]{g\in NG}{\Rec x. g \in NG}
+\and
+\inferrule*[Right=DRec]{g\in NG}{\DRec x. g \in NG}
+\\
+\inferrule*[Right=AtmFml]{P\text{ atomic formula}}{P \in NF}
+\and
+\inferrule*[Right=NotAtmFml]{P\text{ atomic formula}}{\neg P \in NF}
+\\
+\inferrule*[Right=Or]{f\in NF \\ g \in NF}{f\vee g \in NF}
+\and
+\inferrule*[Right=And]{f\in NF \\ g \in NF}{f\wedge g \in NF}
+\\
+\inferrule*[Right=Diam]{\alpha \in NG \\ f\in NF}{\langle\alpha\rangle f \in NF}
+\end{mathpar}
+\end{bdefinition}
+
+The conversion from an \RGL{} formula to its normal form depends on a syntactic dual operator $\syd(\cdot)$ on the enriched games and a syntactic complement $\overline{(\cdot)}$ operator on enriched formulas. This is given recursively as follows:
+
+
+\medskip
+
+\begin{bdefinition}[\RGL{} Syntactic Dual and Complement]
+\texttt{RGL\_sy\_dual, RGL\_sy\_comp}
+
+\begin{tabular}{l l l}
+ $\syd(a)=\Dual{a}$ 
+ & $\syd(x)=\Dual{x}$ 
+ & $\syd(\alpha \cap \beta) = \syd(\alpha) \cup \syd(\beta)$ \\
+ $\syd(\Dual{\alpha})=\alpha$ 
+ & $\syd(\Test\phi)=\DTest\phi$ 
+ & $\syd(\alpha\cup\beta)=\syd(\alpha)\cap \syd(\beta)$ \\
+ $\syd(\DTest \phi)=\Test\phi$ & $\syd(\Rec x. \alpha) = \DRec x. (\syd(\alpha) [ \Dual{x}/x])$ & $\syd(\DRec x. \beta) = \Rec x. (\syd(\beta) [x/\Dual{x}])$
+
+\medskip \\
+
+ $\overline{P} = \neg P$ 
+ & $\overline{\neg f} = f$ 
+ & $\overline{f \vee g} = \overline{f} \wedge \overline{g}$ \\
+ $\overline{f \wedge g} = \overline{f} \vee \overline{g}$
+ & $\overline{\langle\alpha\rangle f} = \langle \syd(\alpha)\rangle \overline{f}$
+\end{tabular}    
+\end{bdefinition}
+
+
+\medskip
+
+
+
+The new connectives are $\DTest, \cap, \DRec, \wedge$. They are equivalent to the following formulas using the original connectives:
+
+\begin{align*}
+    \alpha \cap \beta &\equiv \Dual{(\Dual{\alpha} \cup \Dual{\beta})} \\
+    \DRec x. \beta &\equiv \Dual{(\Rec x. \Dual{(\beta [x/\Dual{x}])})} \\
+    \DTest f &\equiv \Dual{(\Test f)}
+\end{align*}
+
+where both operations $\alpha [\Dual{x}/x]$ and $\beta [x/\Dual{x}]$ mean replacing each occurrence of $x$ by $\Dual{x}$ and vice versa. After semantics is introduced, one can prove their semantical equivalence.
+
+The converison of an \RGL{} expression into normal form is given by replacing each dual operator $\Dual{\cdot}$ by the syntactic dual $\syd$ and replacing $\neg$ with syntactic complement. It is mutually recursively defined over enriched \RGL{} games and formulas, named $n_G$ and $n_F$ respectively. 
+
+\begin{bdefinition}[\RGL{} Normalization]
+\texttt{RGL\_normalize\_game, RGL\_normalize\_fml}
+
+\begin{tabular}{l l l}
+  $n_G(a)=a$ 
+  & $n_G(x)=x$ 
+  & $n_G(\Dual{\alpha})= \syd(n_G(\alpha))$ \\
+   $n_G(\Test \phi)= \Test(n_F(\phi))$ 
+   & $n_G(\DTest \phi)= \DTest(n_F(\phi))$ \\
+   $n_G(\alpha\cup\beta)=n_G(\alpha)\cup n_G(\beta)$ 
+   & $n_G(\alpha\cap\beta)=n_G(\alpha)\cap n_G(\beta)$ \\
+   $n_G(\alpha ; \beta) = n_G(\alpha);n_G(\beta)$
+   & $n_G(\Rec x.\alpha)= \Rec x.n_G(\alpha)$ 
+   & $n_G(\DRec x.\alpha)= \DRec x.n_G(\alpha)$ \\
+   $n_F(P) = P$
+   & $n_F(\neg f) = \overline{n_F(f)}$ \\
+    $n_F(f\vee g) = n_F(f)\wedge n_F(g)$ 
+   & $n_F(f\wedge g) = n_F(f)\wedge n_F(g)$ \\
+   $n_F(\langle\alpha\rangle f) = \langle n_G(\alpha)\rangle n_F(f)$
+\end{tabular}
+\end{bdefinition}
+
+We have a well-definedness lemma for the normalization operations.
+
+\begin{blemma}[\RGL{} Normal after Syntactic Dual] \texttt{RGL\_nml\_sy\_dual\_\_nml}
+\label{lem:RGL_syd_nml}
+
+Let $g$ be an \RGL{} game and $f$ be an \RGL{} formula.
+
+\begin{enumerate} 
+    \item If $g\in NG$, then $n_G(g)\in NG$.
+    \item If $f\in NF$, then $n_F(f)\in NF$.
+\end{enumerate}
+\end{blemma}
+\begin{proof}
+By mutual induction on the derivation tree of $NG$ and $NF$. One needs to prove a lemma for preservation of normality under the operation $[\Dual{x}/x]$. This is easily done with structural induction.
+\end{proof}
+
+\begin{blemma}[\RGL{} Normal after Normalizing] \texttt{RGL\_normalize\_nml}
+
+Let $g$ be an \RGL{} game and $f$ be an \RGL{} formula.
+\label{lem:RGL_normalize_nml}
+\begin{enumerate} 
+    \item For any \RGL{} game $g$, $n_G(g)\in NG$.
+    \item For any \RGL{} formula $f$, $n_F(f)\in NF$.
+\end{enumerate}
+\end{blemma}
+\begin{proof}
+    By structural induction on $g$ and $f$, using \autoref{lem:RGL_syd_nml} for the $\Rec$ and $\DRec$ cases.
+\end{proof}
+
+We demonstrate the normalization procedure on \autoref{ex:rgl_notnormal}. Fortunately, we only need to apply syntactic dual once on the outermost level.
+
+\begin{align*}
+     & \langle\Dual{(\Rec x. (a\cup b; x \cup \Test \top) )}\rangle P \\
+    \mapsto & \langle\DRec x. (\Dual{a}\cap\Dual{b}; x\cap \DTest\top) \rangle P \\
+\end{align*}
+
+The normal form tells us how the game should be played. It is a Demon controlled recursion where he chooses to play the following game: first play $a$ or $b$ then decide whether to stop. This is the same as the above game controlled by Angel, and then switching control $\Dual{(\cdot)}$ to Demon.
+
+It is common in logic literature to consider \textit{positive} normal forms, which is normal form with the additional restriction that $\Dual{x}$ does not appear. This applied to the \RGL{} setting means there is no Demon-controlled recursion in Angel recursion game $\Rec$, and no Angel-controlled recursion in $\DRec$. This tames the expressiveness of \RGL{} to conform to that of \GLs{}. To be precise, positive normal form is obtained from \autoref{def:RGL_nml_gm_RGL_nml_fml} by removing the DVar rule. In almost everywhere else in this thesis, we only consider \RGL{} formulas in positive normal form.
+
+\subsection{Semantics}
+\label{subsec:RGL_sem}
+The semantics of \RGL{} is very similar to that of \GLs{}, except we do not carry sabotage contexts in the structure. The difference is that we have a \textit{valuation} $I: Variables \rightarrow \calW(|\calN|)$ that interprets each free variable into an effective function.
+
+\begin{remark}
+    \begin{itemize}
+        \item The dual effective function is defined analogously: $f^d(A) = (f(A^c))^c$. Here $^c$ is the normal complement in $|\N|$.
+        \item There is a higher-order fixpoint definition over $\W(|\N|)$ when equipped with the canonical lattice structure given by point-wise lattice structure on $\calP(|\N|)$. In other words, two effective functions $f$ and $g$ has $f\leq g$ iff $f(x)\subseteq g(x)$ for all $x\in\calP(|\N|)$. The semantics of recursion games are defined using this notion.
+    \end{itemize}
+\end{remark}
+
+\begin{bdefinition}[$\RGL{}$ Semantics]
+\texttt{RGL\_game\_sem, RGL\_fml\_sem}
+
+    Let $\N$ be a monotone neighborhood structure. Let $I$ be a valuation. The semantics of an $\RGL{}$ formula $\phi$ is a set $\N\ddl \phi \ddr_s\in \mathcal P (|\N|)$. The semantics of a $\GLs$ game $\alpha$ is an effective function $\N\ddl\alpha\ddr_s\in \W(|\N|)$. They are given mutually recursively by
+    
+    \begin{tabular}{l l}
+        $\N\ddl P\ddr^I = \N(P)$ 
+        & $\N\ddl \langle\alpha\rangle\phi\ddr^I = \N\ddl\alpha\ddr^I(\N\ddl\alpha\ddr^I)$ \\
+        $\N\ddl \neg\phi\ddr^I = \comp{(\N\ddl \phi\ddr^I)}$ 
+        & $\N\ddl \phi\vee\psi\ddr^I=\N\ddl\phi\ddr^I\cup \N\ddl\psi\ddr^I$ \\
+        $\N\ddl \phi\wedge\psi\ddr^I=\N\ddl\phi\ddr^I\cap \N\ddl\psi\ddr^I$ \\
+        $\N\ddl a\ddr^I=\N(a)$ 
+        & $\N\ddl \Test\phi\ddr^I(A)=\N\ddl \phi\ddr^I\cap A$ \\
+        $\N\ddl x \ddr^I = I(x)$ \\
+        $\N\ddl \DTest\phi\ddr^I(A)=\comp{(\N\ddl \phi\ddr^I)}\cup A$ \\
+        $\N\ddl \alpha\cup\beta\ddr^I=\N\ddl \alpha\ddr^I \cup \N\ddl \beta\ddr^I$ \\
+        $\N\ddl \alpha\cap\beta\ddr^I=\N\ddl \alpha\ddr^I \cap \N\ddl \beta\ddr^I$ \\
+        $\N\ddl\Dual{g}\ddr^I=\Dual{(\N\ddl g\ddr^I)}$ 
+        & $\N\ddl\alpha;\beta\ddr^I=\N\ddl \alpha\ddr^I\circ \N\ddl\beta\ddr^I$ \\
+        $\N\ddl \Rec x. g\ddr^I=\mu q.(\N\ddl g\ddr^{I[x\coloneq q]})$ 
+        & $\N\ddl \DRec x. g\ddr^I=\nu q.(\N\ddl g\ddr^{I[x\coloneq q]})$  \\
+    \end{tabular}
+
+\medskip
+
+A formula $f$ is true in $\N$, denoted by $\N \models f$, iff $\N\ddl f\ddr^I = |\N|$ for all valuations $I$.
+
+\end{bdefinition}
+
+There is an analogous compatibility lemma between syntactic dual and complement and \RGL{} semantics.
+
+\begin{blemma}[Syntax and Semantics Compatible]
+\texttt{RGL\_sy\_comp\_dual\_compat}
+
+\begin{enumerate}
+    \item $\N\ddl \overline f\ddr^I = \comp{\N\ddl f\ddr_s} $ \\
+    \item $\N\ddl \syd g\ddr^I = \Dual{\N\ddl g\ddr_s} $
+\end{enumerate}
+\end{blemma}
+\begin{proof}
+    By mutual structural induction on $f$ and $g$, generalizing over all valuations $I$.
+\end{proof}
+
+\subsection{Right-Linearity}
+An \RGL{} game is right-linear in $x$ if it does not subgame of the form $\alpha ; \beta$ where $x$ is free in $\alpha$. An \RGL{} games is right-linear if all its subgames of the form $\Rec x. g$ or $\DRec x. g$ have $g$ right-linear in $x$. One can easily write inductive rules that define these. In Isabelle, they are \texttt{rl\_gm\_in} and \texttt{rl\_gm} respectively.
+
+Note that our normalized \autoref{ex:rgl_notnormal}, $\langle\DRec x. (\Dual{a}\cap\Dual{b}; x\cap \DTest\top) \rangle P$ is right-linear because the inner game is right-linear in $x$. However, due to our Isabelle implementation that is an inductive predicate (and hence insists on normality), \autoref{ex:rgl_notnormal} is not right-linear as given.
+
+\section{Fixpoint Logic with Chop}
+The \FLC{} is, syntactically, $\Lmu{}$ extended with the chop operator $(;)$. However, it semantically has a higher-order interpretation of formulas and that makes it equiexpressive to \RGL{}. The $;$ operator correspond to sequencing of games $;$ in \RGL{}. \FLC{} was originally invented to characterize context-free processes up to bisimulation \cite{FLC}. It has the following syntax.
+
+\begin{center}
+\begin{bdefinition}[\FLC{} Syntax]
+\texttt{FLC\_fml}
+
+    \begin {bnf}
+        $\phi$, $\psi$ :\texttt{FLC} ::=
+        | P : atomic formula
+        | $x$: variables
+        | $id$: Identity function
+        | $\neg$ $\phi$ : atomic negation
+        | $\phi \vee\psi$ : disjunction
+        | $\phi \wedge \psi$ : conjunction
+        | $\langle a \rangle \psi$ : modal formula, where $a$ is atomic game
+        | $[a] \psi$: dual modal formula, where $a$ is atomic game
+        | $\phi$ ; $\psi$: chop
+        | $\mu x. \phi$ : least fixpoint
+        | $\nu x. \phi$ : greatest fixpoint
+    \end{bnf}
+\end{bdefinition}
+\end{center}
+
+\FLC{} has an analogous normal form where $\neg$ is applied to atomic formula only (\texttt{FLC\_nml} in Isabelle).
+
+There is an analogous syntactic complement for \FLC{} formulas (\texttt{FLC\_sy\_comp} in Isabelle).
+
+\subsection{Semantics}
+\FLC{} has the following semantics. Let $I^d(x) = I(x)^d$ for the semantics of $\neg$.
+
+\begin{bdefinition}[$\FLC{}$ Semantics]
+\texttt{FLC\_sem}
+
+    Let $\N$ be a monotone neighborhood structure. Let $I$ be a valuation. The semantics of an $\FLC{}$ formula $\phi$ is an effective function $\N\ddl\alpha\ddr^I\in \W(|\N|)$. It is given recursively by
+    
+    \begin{tabular}{l l}
+        $\N\ddl P\ddr^I = \N(P)$ \\
+        $\N\ddl \langle\alpha\rangle\phi\ddr^I = \N\ddl\alpha\ddr^I\circ \N\ddl\phi\ddr^I$ 
+        & $\N\ddl [\alpha]\phi\ddr^I = \Dual{(\N\ddl\alpha\ddr^I)} \circ\N\ddl\phi\ddr^I$ \\
+        $\N\ddl \neg\phi\ddr^I = \Dual{(\N\ddl \phi\ddr^{I^d})}$ 
+        & $\N\ddl \phi\vee\psi\ddr^I=\N\ddl\phi\ddr^I\cup \N\ddl\psi\ddr^I$ \\
+        $\N\ddl \phi\wedge\psi\ddr^I=\N\ddl\phi\ddr^I\cap \N\ddl\psi\ddr^I$ \\
+        $\N\ddl Id\ddr^I= Id$ 
+        & $\N\ddl x \ddr^I = I(x)$ \\
+        $\N\ddl\alpha;\beta\ddr^I=\N\ddl \alpha\ddr^I\circ \N\ddl\beta\ddr^I$ \\
+        $\N\ddl \mu x. \phi\ddr^I=\mu q.(\N\ddl \phi\ddr^{I[x\coloneq q]})$ 
+        & $\N\ddl \nu x. \phi\ddr^I=\nu q.(\N\ddl \phi\ddr^{I[x\coloneq q]})$  \\
+    \end{tabular}
+
+\medskip
+
+An \FLC{} formula is true in $\N$, i.e. $\N\models f$, iff for any valuation $I$ we have $\N \ddl f\ddr (\emptyset) = |\N|$.
+\end{bdefinition}
+
+The definition of truth corresponds to the truth in games, that is, Angel has a strategy to win the game under all circumstances.
+
+The syntactic complement of an \FLC{} formula is also compatible with the semantics (\texttt{FLC\_sy\_comp\_sem} in Isabelle), analogous to \GLs{} and \RGL{}.
+
+\subsection{Modal \texorpdfstring{$\mu$}{}-calculus}
+The modal $\mu$-calculus is a process calculi obtained from classical modal logic by adding fixpoint operators. It is developed by Kozen \cite{KOZEN1983333}. It subsumes various other process logics and is able to express complex execution trace properties of computational processes, such as the temporal properties of the like ``when $p$ occurs, eventually $q$ will occur some time in the future''. Indeed, it subsumes the common linear temporal and branching time logics \cite{Emerson1986EfficientMC}.  
+
+$\Lmu{}$ is a syntactic fragment of \FLC{}. Its syntax is given by an inductive predicate over \FLC{} formulas (\texttt{Lmu} in Isabelle). However, it is better viewed as BNF.
+
+\begin{center}
+\begin{bdefinition}[$\Lmu{}$ Syntax]
+\texttt{Lmu}
+
+    \begin {bnf}
+        $\phi$, $\psi$ :\texttt{Lmu} ::=
+        | P : atomic formula
+        | $x$: variables
+        | $\neg P$ : atomic negation
+        | $\phi \vee\psi$ : disjunction
+        | $\phi \wedge \psi$ : conjunction
+        | $\langle a \rangle \psi$ : modal formula, where $a$ is atomic game
+        | $[a] \psi$: dual modal formula, where $a$ is atomic game
+        | $\mu x. \phi$ : least fixpoint
+        | $\nu x. \phi$ : greatest fixpoint
+    \end{bnf}
+\end{bdefinition}
+\end{center}
+
+The semantics of $\Lmu{}$ inherits that of \FLC{}. There is no corresponding Isabelle name because it is treated as a subset of \FLC{} in there. There is no normal form either because the syntax is already given in normal form.
+
+The preceding syntax and semantics now allow us to formalize the logics concretely in Isabelle. The next chapter discusses the implementation-level structures needed to mechanize these definitions.
+

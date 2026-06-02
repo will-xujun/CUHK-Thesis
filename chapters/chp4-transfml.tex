@@ -1,0 +1,734 @@
+% !TEX root = ../thesis.tex
+
+\chapter{Metatheory Formalization}
+\label{chp:meta_fml}
+
+The translation between \RGL{} and \FLC{} is interesting in the sense that even though both have inherently second-order interpretations into effective functions, $\FLC{}$ contains the subset $\Lmu{}$ which only has first-order fixpoints and is semantically only first-order. This means the fragment of \RGL{} that corresponds with $\Lmu{}$ are interpreted into constant effective functions. This also implies that while \GLs{} has second-order games, the equiexpressivenss between \GLs{} and $\Lmu{}$ only lives at the level of formulas, not games. An interesting theoretical question is, therefore, whether games in \GLs{} adds some second-order expressive power not captured by $\Lmu{}$. This question is left for future work.
+
+This chapter proceeds as follows. In \autoref{sec:trans_RGL_FLC} we give the translations between \RGL{} and \FLC{} with their associated Isabelle names and mathematical definitions. We also discuss the restriction of this translation to \rlGL{} in \autoref{subsec:trans_rlGL_Lmu}. We provide a sketch of soundness proofs. The generalized Beki\v{c} principle is of independent interest and is a prerequisite to the translation between \GLs{} and \rlGL{}, hence occupies \autoref{sec:Bekic}. In \autoref{sec:trans_GLs_rlGL} we discuss translations between \GLs{} and \rlGL{}.
+
+\section{Translation between \RGL{} and \FLC{}}
+\label{sec:trans_RGL_FLC}
+
+The translation from \RGL{} to \FLC{} is given as follows. It works on positive normal form only. As a result, the negation of an atomic formula is translated as-is, but the negation of non-atomic formula is undefined. The translation of compound duals is also undefined. The operation $[\_/u,v]$ means substitution as usual, but variables $u,v$ are substituted simultaneously. The variables $u,v$ mark the end of games, so that they could later be replaced with game continuations. Note that Demonic test is translated into a syntactic complement, which conforms to the semantics.
+
+\begin{bdefinition}[Translate \RGL{} to \FLC{}]
+
+\texttt{Rgl\_gm2Flc, Rgl\_fml2Flc}
+
+\begin{tabular}{l l}
+    $ \RF{P} = P$ 
+    & $\RF{\neg P } = \neg P$ \\
+    & $\RF{\neg\  \underline{\hspace{8pt}}} = \bot$ \\
+    $\RF{(\langle\alpha\rangle\phi)} = \RF{\alpha}[\RF{\phi}/u,v]$ \\
+    $\RF{(\phi\vee\psi)}=\RF{\phi}\vee \RF{\psi}$ 
+    & $\RF{(\phi\wedge\psi)}=\RF{\phi}\wedge \RF{\psi}$ \\
+    $\RF{a} =\langle a\rangle u$ 
+    & $\RF{(\Dual{a})} = [a] u$ \\
+    & $\RF{(\Dual{(\underline{\hspace{8pt}})})} = \bot$ \\
+    $\RF{(\Test\phi)}=\RF{\phi}\wedge u$
+    & $\RF{(\DTest\phi)}=\RF{(\overline\phi)}\vee u$ \\
+    $\RF{x} = x\circ v$ \\
+    $\RF{(\alpha\cup\beta)} =\RF{\alpha} \vee \RF{\beta}$ 
+    & $\RF{(\alpha\cap\beta)} =\RF{\alpha} \wedge \RF{\beta}$ \\
+    $\RF{(\alpha;\beta)}=\RF{\alpha}[\RF{\beta}/u,v]$ \\
+    $\RF{(\Rec x. g)}=(\mu x.(\RF{g}[id/u,v]))\circ u$ 
+    & $\RF{(\DRec x. g)}=(\nu x.(\RF{g}[id/u,v]))\circ u$  \\
+\end{tabular}
+\end{bdefinition}
+
+The translation is sound, as given by the lemma below. The lemma presupposes that \RGL{} expressions do not contain $u,v$ as free variables because they are distinguished for translation purpose.
+
+\begin{blemma}[($\RF{}$) is Sound]
+\label{lem:RGL2FLC_sound}
+\texttt{Rgl2Flc\_sound}
+
+Let $\N$ be a neighborhood structure and let $I$ be a valuation. Let $g\in PNG$ and $f\in PNF$ in \RGL{}. Suppose $g$ and $f$ do not contain $u,v$ as free variables. Let $w\in \W(|\N|)$. We have
+
+\begin{enumerate}
+    \item $\N\ddl f \ddr^I = \N\ddl \RF{f}\ddr^I(A)$ for any $A\subseteq |\N|$
+    \item $\N\ddl g \ddr^I \circ w = \N\ddl \RF{g}\ddr^{I[u,v\coloneq w]}$
+\end{enumerate}
+
+Hence $\N \models f$ iff $\N\models \RF{f}$.
+\end{blemma}
+
+The intuition behind $u,v$ is to mark continuation for games and unwrap \RGL{} formulas to the appropriate ``modal formula'' in \FLC{}, which is operationally just a series of chops. We highlight a few cases that illustrate the use of $u,v$. For atomic games $a$, the translation is $\langle a\rangle u$. This would match \FLC{} semantics exactly if $u$ is interpreted into any effective function $w$, which serves as continuation of the game $a$. This works with \FLC{}'s higher-order interpretation of formulas into effective functions themselves. The translation of game variables $x$ is $x\circ v$, which has the same idea but using $v$ as another type of continuation for later consideration in right-linearity. Its functionality is the same as $u$.
+
+The modal case $\langle \alpha\rangle\psi$ illustrates \FLC{}'s interpretations of games and formulas in equal footing, both as effective functions. Even though $\psi$ is a first-order construct living in $\calP(|\N|)$, it could be embedded into effective function space using $u,v$. We need the following substitution compatibility lemma to prove soundness of this case.
+
+\begin{blemma}[Substitution Compatibility]
+
+\texttt{FLC\_subst\_sem\_compat}
+\label{lem:FLC_subst_sem_compat} 
+
+If the substitution $\phi\frac{\psi}{u,v}$ is capture avoiding, then
+\begin{equation}
+\N\ddl \phi\frac{\psi}{u,v}\ddr^I=\N\ddl \phi\ddr^{I[u,v\mapsto \N\ddl\psi\ddr^I]}
+\end{equation}
+
+\end{blemma}
+\begin{proof}
+    We can restrict to \FLC{} normal forms. The proof follows from a structural induction on those.
+\end{proof}
+
+\begin{proof}[Proof of \autoref{lem:RGL2FLC_sound}, modal case]
+    Suppose $f = \langle\alpha\rangle\psi$. Have $f^\flat = \alpha^\flat \dfrac{\psi^\flat}{u,v}$. By \autoref{lem:FLC_subst_sem_compat} we have 
+    \[\N\ddl\alpha^\flat\frac{\psi^\flat}{u,v} \ddr^I = \N\ddl\alpha^\flat\ddr^{I[u,v\mapsto \N\ddl\psi^\flat\ddr]}\] By induction hypothesis for games, we have 
+    \[\N\ddl\alpha^\flat\ddr^{I[u,v\mapsto \N\ddl\psi^\flat\ddr]} = \N\ddl\alpha\ddr^I\circ \N\ddl\psi^\flat\ddr \]
+    Plugging in $A$ and using the IH for formulas, we get
+    \[\N\ddl\alpha\ddr^I\circ \N\ddl\psi^\flat\ddr^I(A)=\N\ddl\alpha\ddr^I( \N\ddl\psi\ddr^I)\]
+
+    But the RHS is precisely $\N\ddl\langle\alpha\rangle\psi\ddr^I$. This finishes the case.
+\end{proof}
+
+We note that $\alpha ;\beta$ works very much similarly to the modal case. 
+
+The recursion case $\RF{(\Rec x. g)}=(\mu x.(\RF{g}[id/u,v]))\circ u$ is more interesting. Operationally, the additional $\circ u$ is to accommodate the semantical effect of having $\circ w$ as continuation in \autoref{lem:RGL2FLC_sound}. The substitution to $Id$ serves to nullify the effect of $u,v$ inside $g$. They are not really needed as the continuation is taken care of by recursion. We give the proof to illustrate this subtlety.
+
+\begin{proof}[Proof of \autoref{lem:RGL2FLC_sound}, recursion case]
+    Suppose $g= \Rec x. \beta$. Have $g^\flat = (\mu x. \beta^\flat \frac{Id}{u,v})\circ u$. Then we have 
+    \[\N\ddl\mu x. \beta^\flat\frac{Id}{u,v}\ddr^{I[u,v\mapsto w]} = \mu q. \N\ddl \beta^\flat\frac{Id}{u,v}\ddr^{I[x\mapsto q][u,v \mapsto w]}\]
+    Then we use Lemma \autoref{FLC_subst_sem_compat} to see
+    \[\mu q. \N\ddl \beta^\flat\frac{Id}{u,v}\ddr^{I[x\mapsto q][u,v \mapsto w]}= \mu q. \N\ddl \beta^\flat\ddr^{I[x\mapsto q][u,v\mapsto Id]}\] since $\N\ddl Id\ddr = Id$. By IH on (2) we have
+    \[\mu q. \N\ddl \beta^\flat\ddr^{I[x\mapsto q][u,v\mapsto Id]} = (\mu q. \N\ddl \beta\ddr^{I[x\mapsto q]})\circ Id = \N\ddl\Rec x. \beta\ddr\]
+    Hence
+    \[\N\ddl(\mu x. \beta^\flat\frac{Id}{u,v})\circ u\ddr^{I[u,v\mapsto w]} = \N\ddl \Rec x.\beta\ddr\circ w \]
+\end{proof}
+
+For a full mathematical proof of soundness, we refer interested readers to \cite{Wafa_2024}.
+
+The translation from \FLC{} to \RGL{} is more straightforward because unlike from games to formula with continuations there is no need to inline the process of game-play. The translation is given as follows.
+
+\begin{bdefinition}[Translation from \FLC{} to \RGL{}]
+
+\texttt{FLC2RGL, FLC2RGL\_fml}
+
+\begin{tabular}{c c c}
+$\FRgm{id}=\Test\top$ 
+& $P^{\shp}=\Test P;\DTest\bot$ 
+& $(\phi\vee\psi)^{\shp} =\phi^{\shp}\vee\psi^{\shp}$ \\
+  $x^{\shp} = x$ & $(\neg P)^\shp = \Test\neg P; \DTest\bot$ & $(\phi\wedge\psi)^\shp = \phi^\shp\wedge\psi^\shp$\\
+  $(\langle a\rangle\phi)^\shp=a;\phi^\shp$ & $(\mu x. \phi)^\shp=\Rec x. \phi^\shp$ & $(\phi\circ\psi)^\shp=\phi^\shp;\psi^\shp$ \\
+  $([a]\phi)^\shp=\Dual a;\phi^\shp$ & $(\nu x. \phi)^\shp=\DRec x. \phi^\shp$
+\end{tabular}
+
+\medskip
+
+Then an \FLC{} formula $f$ is translated to the \RGL{} formula
+$\FRfml{f} = \langle\FRgm{f}\rangle\bot$.
+\end{bdefinition}
+
+The translation $\FRgm{(\cdot)}$ goes semantically from an effective function to a subset of $|\N|$. This inherently reduces the semantic power, hence is NOT what can be proven about soundness. The soundness of translation is with respect to $\FRgm{(\cdot)}$.
+
+\begin{blemma}[Soundness of $\FRgm{(\cdot)}$]
+\label{lem:FLC2RGL_sound}
+\texttt{FLC2RGL\_sound}
+
+Let $\N$ be a neighborhood structure and let $I$ be a valuation. Then
+for any \FLC{} formula $f$,
+
+\begin{equation*}
+    \N\ddl \FRgm{f}\ddr^I = \N \ddl f\ddr^I
+\end{equation*}
+
+Hence $\N\models f $ iff $\N\models \FRfml{f}$.
+\end{blemma}
+\begin{proof}
+    We demonstrate how the soundness in terms of effective functions lead to equivalence of truth of formulas. 
+
+    \begin{align*}
+         & \N \models \FRfml{f} \\
+    \iff & \N \ddl \langle\FRgm{f}\rangle \bot\ddr^I = |\N| \text{ for all } I\\
+    \iff & \N \ddl f\ddr^I(\emptyset) = |\N| \text{ for all } I \\
+    \iff & \N \models f
+    \end{align*}
+
+    The soundness of $\FRgm{(\cdot)}$ follows from a straightforward structural induction on \FLC{} normal form formulas. We can restrict to normal forms because any \FLC{} formula is equivalent to its normal form.
+\end{proof}
+
+\autoref{lem:FLC2RGL_sound} and \autoref{lem:RGL2FLC_sound} together give a formal equiexpressiveness theorem for \RGL{} and \FLC{}. 
+
+\begin{theorem}[\cite{Wafa_2024}, Theorem 5.3]
+    \RGL{} and \FLC{} are equiexpressive.
+\end{theorem}
+
+This equiexpressiveness lives in higher-order space of effective functions.
+
+\subsection{Restriction to \rlGL{} and \texorpdfstring{$\Lmu{}$}{}}
+\label{subsec:trans_rlGL_Lmu}
+The restriction of $\RF{(\cdot)}$ to \rlGL{} requires a slight modification on the placement of continuation variables $u,v$. In particular, the translation $x\circ v$ has $v$ removed because any play ending in $x$ does not have further continuation beyond $x$, as per the specification of right-linearity, where $x ; \beta$ is not allowed. As a result, the substitutions $[\_/ u,v]$ all become $[\_/ u]$. Also, the continuation $u$ is removed from the translation of recursion games so that it becomes $\rlL{(\Rec x. g)}=\mu x.\rlL{g}$. To be precise, $\rlL{(\cdot)}$ is obtained from $\RF{(\cdot)}$ by making the following modifications:
+
+\begin{align*}
+   & \rlL{x} = x \\
+   & \rlL{(\alpha ; \beta)} = \rlL{\alpha}[\rlL{\beta}/u] \\
+   & \rlL{(\Rec x. g)} = \Rec x. \rlL{g} \\
+   & \rlL{(\DRec x. g)} = \DRec x. \rlL{g} \\
+   & \rlL{(\langle\alpha\rangle\phi)} = \rlL{\alpha}[\rlL{\phi}/u]
+\end{align*}
+
+Notice that the absence of $x\circ v$ makes the image of $\rlL{(\cdot)}$ an $\Lmu{}$ formula and does not contain $\circ$. This is stated formally as the following.
+
+\begin{blemma}[$\rlL{}$ Image in $\Lmu{}$]
+
+\texttt{rl\_Rgl2Flc\_\_Lmu}
+
+Let $f$ be an \rlGL{} formula and let $g$ be an \rlGL{} game. Then
+
+\begin{enumerate}
+    \item $\rlL{f}$ is an $\Lmu{}$ formula
+    \item $\rlL{f}$ is an $\Lmu{}$ game
+\end{enumerate}
+    
+\end{blemma}
+
+\begin{proof}
+    The lemma follows by structural induction on \rlGL{} normal forms of \rlGL{} formulas and games. One needs to prove the following helper facts:
+    \begin{itemize}
+        \item (\texttt{Lmu\_subst\_\_Lmu}) The operation $(\psi)[\phi/u,v]$ where $\psi, \phi$ are an $\Lmu{}$ formulas gives back an $\Lmu{}$ \\
+        \item (\texttt{Lmu\_sy\_comp\_\_Lmu}) $\Lmu{}$ is closed under syntactical complement
+    \end{itemize}
+    The second fact is used to prove the Demonic test case, where a syntactic complement appears. The first fact is used for sequence games and modal formulas, where substitution appears. Both facts can be proven using structural induction on $\Lmu{}$ syntax, which is natively in normal form. 
+\end{proof}
+
+\begin{remark}
+    The intuition behind this translation is the fragment \rlGL{} is expressible in terms of first-order fixpoint, even though recursion is natively higher-order. The right-linearity structure corresponds to tail-recursion hence is amenable to such a reduction. 
+    
+    $\Lmu{}$ only natively expresses first-order fixpoints in $\calP(S)$, so formulas should be interpreted into \textit{constant} effective functions when variables are valuated as such by $I$.
+\end{remark}
+
+\begin{btheorem}[\rlGL{} and $\Lmu{}$ Equiexpressive]
+    
+\end{btheorem}
+\section{The Semantical Beki\v{c} Principle}
+\label{sec:Bekic}
+In this section we introduce the Beki\v{c} principle, which is needed for translating \GLs{} to \RGL{}, as hinted at in several occasions in previous sections. The Beki\v{c} principle appears occasionally in fixpoint theory literature. First of all, it appears in pedagogical settings when vectorial fixpoint is introduced \cite{venema-notes}. In research, it has appeared in the interpretation and modeling of block-diagram digital circuits \cite{Synchronous-block}. It has also appeared in recent work studying the \textit{graded} $\mu$-calculus \cite{Parallel-graphs}. Overall, it has scattered but robust use cases in places involving monotone maps from products of lattices. None of the works mentioned in this paragraph, however, provides a closed-form expression for the coordinates of a vectorial fixpoint. That is a gap filled by the present work.
+
+Recall that a \textit{lattice} is a partially ordered set where any pair of elements has a join and a meet. A lattice is \textit{complete} if any subset has a supremum and an infimum. The Beki\v{c} principle provides a formula to write the coordinates of a vectorial fixpoint. For 2 variables, it has the following form.
+
+\begin{theorem}[Beki\v{c}, standard form]
+    \label{thm:Bekic2}
+    Let $E,F$ be complete lattices, and let $f: E\times F \rightarrow E\times F$ be a monotone function. Let $f_1,f_2$ be the projection of $f$ to the first and second coordinate, respectively. Then the following equality holds:
+    \begin{equation}
+    \label{eqn:binary_Bekic}
+    \mu \begin{bmatrix}
+        x \\ y
+    \end{bmatrix}. \begin{bmatrix}
+        f_1(x,y) \\
+        f_2(x,y)
+    \end{bmatrix} = \begin{bmatrix}
+        \mu x. f_1(x,\mu y.f_2(x,y)) \\
+        \mu y. f_2(\mu x.f_1(x,y),y))
+    \end{bmatrix}
+    \end{equation}
+\end{theorem}
+\begin{proof}(sketch)
+    Write $LHS = (a,b)$ and $RHS = (a',b')$. For $LHS \leq RHS$, one derives that some expression involving $a',b'$ is a fixpoint of $f$. For $RHS \leq LHS$, first unfold $a_1 = f_1(a,b) = f_1(a, f_2(a,b))$. Then we fold by observing this is $f_1(a, f_2(a,b))\geq f_1(a, \mu y. f_2(a,y)) \geq \mu x. f_1(x,\mu y. f_2(x,y)) = a_1'$. The coordinate $b$ is similar. For details, see Lemma 1.4.2 of \cite{arnold2001rudiments}. 
+\end{proof}
+
+In \autoref{eqn:binary_Bekic}, the vectorial fixpoint appears on the LHS. It is an element of $E\times F$. The component-wise nested fixpoint appears on the RHS. For instance, the first component $\mu x. f_1(x,\mu y.f_2(x,y))$ is an element of $E$ and has nesting depth 2.
+
+We would like to derive the form of a generalized Beki\v{c} principle for $n$ lattices where $n>2$. To illustrate, consider $n=3$. In \autoref{eqn:binary_Bekic}, the placements of the fixpoint operators $\mu x, \mu y$ seems to form a lexicographic ordering over $\{1,2\}$, which is simply $12 < 21$. For sequences of length 3, we guess the same pattern should hold over $\{1,2,3\}$, that is, we have the lexicographic order $123 < 132 < 213 < 231 < 312 < 321$. Now suppose $f:L_1\times L_2\times L_3\rightarrow L_1\times L_2\times L_3$ is a monotone map. We naturally conjecture that
+
+\begin{equation}
+\label{eqn_3}
+    \mu \begin{bmatrix}
+        x \\ y \\ z
+    \end{bmatrix}. \begin{bmatrix}
+        f_1(x,y,z) \\
+        f_2(x,y,z) \\
+        f_3(x,y,z)
+    \end{bmatrix} = \begin{bmatrix}
+        \mu x. f_1(x,\mu y.f_2(x,y,\mu z. f_3(x,y,z)), \mu z. f_3(x,\mu y.f_2(x,y,z),z)) \\
+        \mu y. f_2(\mu x.f_1(x,y,\mu z. f_3(x,y,z)), y, \mu z. f_3(\mu x. f_1(x,y,z), y ,z)) \\
+        \mu z. f_3(\mu x.f_1(x,\mu y. f_2(x,y,z),z),\mu y.f_2(\mu x.f_1(x,y,z),y,z),z)
+    \end{bmatrix}
+\end{equation}
+
+where the fixpoints are put into the expected argument slots for $f_1,f_2,f_3$ according to the lexicographic ordering. This turns out to be the correct intuition for all higher dimensions. However, we need a general expression for lexicographic order over $n$ letters for sequences of length $n$. This will help us make a precise statement for generalized Beki\v{c}. This expression is introduced in \autoref{subsec:nested_fp}, which uses the notations in \autoref{subsec:notation}.
+
+\subsection{Notations and Conventions}
+This section establishes the notations for stating generalized Beki\v{c} precisely for any natural number $n\geq 1$. An intuitive explanation on how to state generalized Beki\v{c} is given in the beginning of \autoref{subsec:nested_fp}.
+
+\paragraph*{Notation: Lattices, Products and Vectorial Fixpoints}
+\label{subsec:notation}
+Let $(L_1,\leq_1),\dots,(L_n,\leq_n)$ be complete lattices for some positive integer $n$. Then the Cartesian product $L_1\times \dots\times L_n$ is a complete lattice with respect to the usual coordinate-wise partial order $(v_1,\dots,v_n) \leq (w_1,\dots,w_n) \leftrightarrow \forall i\in \{1, \dots,n\}, v_i \leq_i w_i$. Let $f:L_1\times \dots \times L_n\rightarrow L_1\times\dots L_n$ be a monotone self-map on $L_1\times \dots \times L_n$. Let $f_i = \pi_i \circ f$ be the components of $f$ for $i=1,\dots,n$, so that we write $f = (f_1,\dots,f_n)$. The least fixed point of $f$ is denoted by
+\begin{equation*}
+    \mu \begin{bmatrix}
+        x_1 \\
+        \dots \\
+        x_n
+    \end{bmatrix}. \begin{bmatrix}
+        f_1 (x_1,\dots,x_n) \\
+        \dots \\
+        f_n (x_1,\dots,x_n)
+    \end{bmatrix}
+\end{equation*}
+or simply $\mu\vec{x}.f$ when the context is clear.
+
+\paragraph*{Notation: If-then-else Expressions}
+
+A shorthand for if-then-else is needed. We denote the expression
+``$\text{if }b \text{ then } e_1 \text{ else } e_2$'' by $?b: e_1 ; e_2$.
+
+\paragraph*{Notation: Vectors of a General Length}
+
+A notation is needed for vectors of some finite length. We adopt the viewpoint that a $n$-ary vectors $\vec{v}$ in the space $V_1\times,\dots,\times V_n$ is a function from $\{1..n\}$ to $\bigsqcup_{i=1}^n V_i$ with $\vec{v}(i)\in V_i$. Therefore we write $\lambda j\in\{1.. n\}. e(j)$ for a vector of size $n$. Note that when the size is usually clear from context, $\lambda j. e(j)$ can be written unambiguously.
+
+\paragraph*{Notation: Partial Maps and Their Updates}
+A partial map is a set of key-value pairs, where keys $k$ belong to some fixed domain $D$. The \textit{domain} of a partial map is defined as the set of all possible keys. Key-value pairs with duplicate keys are not allowed. We distinguish the \textit{absence} of a key in the domain (that is, a key $k$ is not a member of the domain $D$) and the \textit{presence} of an undefined value $(k,\bot), k\in D$ in the partial map. For example, $\{(1,x),(2,\bot)\}$ is a well-formed partial map for $D=\mathbb N$, but $\{(1.5,x),(2,\bot)\}$ is not. 
+A notation is needed for updating partial maps. For a partial map $B$, we denote by $B(i\mapsto e)$ the updated partial map that returns $e$ on $i$ and $B(j)$ for $j\neq i$. We assume that $i$ is always in the domain of $B$ for this operation.
+
+A notation is needed for removing an entry from a partial map. We call a partial map $B$ $n$-ary if its domain is $\{1..n\}$. Given a $n$-ary partial map $B:\{1..n\}\rightarrow (\bigsqcup_{j=1}^n L_j)\cup \{\bot\}$, where $L_1,\dots,L_n$ are some sets, we write $Sp_iB:\{1..n-1\}\rightarrow (\bigsqcup_{j=1, j\neq i}^n L_j)\cup \{\bot\}$ for the $(n-1)$-ary partial map gotten from $B$ by deleting the key-value pair corresponding to the key $i$. At the same time, every key $j$ in $B$ that is greater than $i$ shifts \textit{forward}, that is $(j,x)$ becomes $(j-1,x)$. We write the newly obtained partial map as $Sp_iB$. It is formally given by
+\begin{equation}
+    Sp_iB: k\mapsto \begin{cases}
+        B(k) & \text{if } 1\leq k<i \\
+        B(k+1) & \text{if } i\leq k\leq n-1
+    \end{cases}
+\end{equation}
+
+Note that this operation only works if $B$ is $2$-ary or above.
+
+\paragraph*{Notation: Specializing Maps}
+
+A notation is needed for plugging a fixed value into some argument slot of a function. Given a $n$-ary map $f:L_1\times\dots\times L_n\rightarrow L_1\times\dots\times L_n$, consider $L_1\times\dots \times L_{i-1} \times L_{i+1} \times\dots \times L_n$ the $(n-1)$-ary Cartesian product with $L_i$ removed. Given a $(n-1)$-ary vector $\vec{y}=(y_1,\dots,y_{n-1})\in L_1\times\dots \times L_{i-1} \times L_{i+1} \times\dots \times L_n$, we would like to plug in $a_i\in L_i$ where $L_i$ used to be into the vector, and shifting every higher $y_k$ backwards. This gives us back a vector in $L_1\times\dots \times L_n$. We call this the \textit{extension} of $(y_1,\dots,y_{n-1})$ by $a_i$ at the $i$-th coordinate, written as $E_{i,a_i}(y_1,\dots,y_{n-1})$. Formally, this is given by
+
+\begin{equation}
+  E_{i,a_i}(y_1,\dots,y_{n-1}) \equiv \lambda j\in\{1..n\}. ?j<i: y_i; ?j=i:a_i; y_{i-1}  
+\end{equation}
+
+using the notation for vectors of a general length. 
+
+To \textit{specialize} a map $f$ at the $i$-th coordinate by $a_i$ means to plug $a_i$ into the $i$-th slot of $f$, then omitting the $i$-th coordinate in the output of $f$. This gives us a map from $L_1\times\dots \times L_{i-1} \times L_{i+1} \times\dots \times L_n$ to $L_1\times\dots \times L_{i-1} \times L_{i+1} \times\dots \times L_n$, which we write as $Sp_{i,a_i}f$. Formally, this is given by
+
+\begin{align}
+    \label{eqn:fn_specialize}
+ Sp_{i,a_i}f: & \vec{y} \mapsto (f_1(E_{i,a_i}(\vec{y})),\dots,{f_{i-1}(E_{i,a_i}(\vec{y}))},{f_{i+1}(E_{i,a_i}(\vec{y}))}, \dots, f_n(E_{i,a_i}(\vec{y})))
+\end{align}
+
+Note that this operation only works if $f$ is $2$-ary or above.
+
+\paragraph*{Covention: LFP versus GFP}
+
+This thesis expands on the case of least fixpoints. Corresponding results for greatest fixpoints can be obtained dually, and is available in the Isabelle artifact.
+
+\subsection{Nested Fixpoints}
+\label{subsec:nested_fp}
+This section shows how to come up with an expression generalizing the RHS of \autoref{eqn_3}. We achieve this with a recursive procedure with a record keeping track of the coordinates bound by $\mu$ operators and the values they are bound to. We demonstrate with an example how this is obtained. Consider
+
+\begin{equation}
+    \label{eqn:nested31}
+    \mu x. f_1(x,\mu y.f_2(x,y,\mu z. f_3(x,y,z)), \mu z. f_3(x,\mu y.f_2(x,y,z),z))
+\end{equation}
+
+which is the first coordinate of RHS of \autoref{eqn_3}. The fixpoint operators (in this case $\mu$) are distributed according to the first two members of the lexicographic order $123 < 132$. We start with an empty record that indicates no coordinate is initially bound. Since we are at the 1st coordinate, we write $\mu x. f_1$ and bound the 1st coordinate to $x$ and pass down the recursion with record $\{(1,x)\}$. In the second slot of $f_1$, we detect that the 2nd coordinate is not bound, so we bind it and add it to the record, which now is $\{(1,x),(2,y)\}$. We write $\mu y. f_2$ and pass down this record. In the arguments of $f_2$, we look up the record and see that both the 1st and the 2nd coordinates are bound, so we take their values $x,y$ respectively. The 3rd coordinate is not bound, so we write $\mu z. f_3$ and finish this branch of recursion. Backtracking two levels up, we are at $f_1$ with record $\{(1,x)\}$. We fill the 3rd slot with a $\mu z. f_3$ and pass down the record $\{(1,x), (3,z)\}$. Finally, we write $\mu y. f_2(x,y,z)$ at the 2nd slot of this $f_3$. This finishes the recursive construction for this example.
+
+Generally, we use a partial map $B$ as the record keeping track of bound coordinates. The $i$-th nested fixpoint $nested(n,i,B,f)$ for a function $f$ with record $B$ has the following definition.
+
+\begin{bdefinition}[Nested Fixpoint]
+\texttt{nested\ Ls\ i\ B\ f}
+\label{def:nested}
+    
+    Let $L_1,\dots,L_n$ be complete lattices and $f:L_1\times \dots \times L_n\rightarrow L_1\times\dots L_n$ be a monotone map. For each $i\in\{1..n\}$, the $i$-th \textbf{nested fixpoint} of $n$ variables with partial map $B:\{1,\dots,n\}\rightarrow (\bigsqcup_{i=1}^n L_i)\cup \{\bot\}$ for $f$ is given by
+    \begin{multline}
+    \label{eqn:nested}
+        nested(n,i,B,f) \equiv \\
+        \mu x_i.f_i(\lambda j. [?j=i:x_i;?(B(j)\neq \bot): B(j); nested(n,j,B(i\mapsto x_i), f)])
+    \end{multline}
+
+    Let $B_\bot$ be the partial map that returns $\bot$ for every $i$ in $\{1..n\}$. Then the $i$-th \textbf{fully nested fixpoint} of $n$ variables for $f$ is given by $nested (n,i,B_\bot,f)$.
+\end{bdefinition}
+
+To confirm correctness, the reader can work out examples such as $nested(3,1,B_\bot,f)$, which should equal \autoref{eqn:nested31}. One could also consult \cite{xu2025} which contains this worked example.
+
+With \autoref{def:nested}, we can state the generalized Beki\v{c} principle for any $n$.
+
+\begin{btheorem}[Generalized Beki\v{c}]
+\label{thm:general_bekic}
+
+\texttt{general\_Bekic}
+
+    Let $L_1,\dots,L_n$ be complete lattices. Let $f:L_1\times \dots\times L_n \rightarrow L_1\times \dots\times L_n$ be a monotone function. The following equality holds:
+    \begin{equation}
+        \label{eqn:general_Bekic}
+        \mu \begin{bmatrix}
+        x_1 \\ x_2 \\ \dots \\ x_n
+    \end{bmatrix}. \begin{bmatrix}
+        f_1(x_1,\dots,x_n) \\ f_2(x_1,\dots,x_n) \\ \dots \\ f_n(x_1,\dots,x_n)
+    \end{bmatrix} = \begin{bmatrix}
+        nested(n,1,B_\bot,f) \\ nested(n,2,B_\bot,f) \\ \dots \\ nested(n,n,B_\bot,f)
+    \end{bmatrix}
+    \end{equation}
+    In particular, for any $i=1,\dots,n$, the $i$-th coordinate of the vectorial fixpoint $(\mu\vec{x}. f)_i$ satisfies
+    \begin{equation}
+        \label{eqn:general_Bekic_coord}
+        (\mu\vec{x}. f)_i = nested (n,i,B_\bot,f)
+    \end{equation}
+\end{btheorem}
+
+\medskip
+
+\begin{remark}
+The formal statement of generlized Beki\v{c} in Isabelle uses product lattice machinery from \autoref{def:cart_prod_lattice}. To be precise, let $\bigotimes Ls$ denote the product lattice as an Isabelle record given by the list $Ls = [L_1,\dots,L_n]$. Then $f: \texttt{carrier}(\bigotimes Ls) \rightarrow \texttt{carrier}(\bigotimes Ls)$ satisfies the Isabelle \texttt{Mono} predicate from HOL-Algebra. The formal statement is then
+
+\[\LFP\ (\bigotimes Ls)\ f = (\lambda \texttt{i}\in\{1..\texttt{length Ls}\}. \texttt{nested Ls i Bot f})\]
+
+The RHS of this expression is a native Isabelle lambda expression.
+\end{remark}
+
+
+\section{Proof of generalized Beki\v{c} Principle}
+\label{sec:math_proof}
+This section gives a sneak peek into the proof of \autoref{thm:general_bekic}, which is detailed in \cite{xu2025}. The proof is essentially a generalization of the 2-variable case in \cite{arnold2001rudiments}. Throughout the section, let us denote by $a_i$ the $i$-th coordinate of the vectorial fixpoint $\mu\vec{x},f$. Further denote by $a_i'$ the $i$-th fully nested fixpoint of $f$. We want to show $a_i=a_i'$.
+
+When $n=1$, it is easy to see $nested(1,1,B_\bot,f) = \mu x_1. f(x_1)$ and there is nothing to prove. For general $n$, we have the induction hypothesis that for any monotone map that goes from any $(n-1)$-ary product to itself, its fixpoint is coordinate-wise equal to the fully nested fixpoint of the corresponding coordinate. We mimick the proof of \autoref{thm:general_bekic} and show $LHS \leq RHS$ and $RHS \leq LHS$ for \autoref{eqn:general_Bekic_coord} separately.
+
+To show $RHS \leq LHS$, which is $a_i' \leq a_i$, it suffices to show the vector $(nested(n,i,B_\bot,f))_i$ is a fixpoint of $f$. Recall that for \autoref{thm:Bekic2} we achieve this by first unfolding the fixpoint to the appropriate form, and then folding back to the desired form using monotonicity. We demonstrate how this is done in \autoref{subsec:ai_geq_ai'}.
+
+\subsection{Unraveling towards Inequality}
+\label{subsec:ai_geq_ai'}
+We demonstrate in this section that $a_i' \leq a_i$ can be proven using unfolding and folding of fixpoints, as the proof of \autoref{thm:Bekic2} suggests. The first step involves unfolding the fixpoint to the correct shape, and the second step involves replacing the fixpoint values in a bottom-up manner by $\mu$ operators. To illustrate, consider $n=3$ and $i=1$ as an example. The unfolding step is
+\begin{align*}
+    a_1 &= f_1(a_1,a_2,a_3) \\
+        &= f_1(a_1,f_2(a_1,a_2,a_3), f_3(a_1,a_2,a_3)) \\
+        &= f_1(a_1,f_2(a_1,a_2,f_3(a_1,a_2,a_3)), f_3(a_1,f_2(a_1,a_2,a_3),a_3))
+\end{align*}
+
+which corresponds to \autoref{eqn:nested31}. We now begin folding the fixpoints in a bottom-up manner. Firstly we consider folding the bottom-level $a_3$ in the second slot of the outermost $f_1$ and $a_2$ in the third slot of $f_1$. Since $a_3 = f_3(a_1,a_2,a_3)$ and $a_2=f_2(a_1,a_2,a_3)$, we get $a_3 \geq \mu x_3. f_3(a_1,a_2,x_3)$ and $a_2\geq \mu x_2.f_2(a_1,x_2,a_3)$. Then we have
+\begin{equation*}
+    a_1 \geq f_1(a_1,f_2(a_1,a_2,\mu x_3.f_3(a_1,a_2,x_3)), f_3(a_1,\mu x_2.f_2(a_1,x_2,a_3),a_3))
+\end{equation*}
+Note in the second slot of the outermost $f_1$ we have $a_2 = f_2(a_1,a_2,f_3(a_1,a_2,a_3)) \geq f_2(a_1,a_2,\mu x_3.f_3(a_1,a_2,x_3))$ by monotonicity of $f_2$. We are then able to replace $a_2$ by $\mu x_2$. Similarly we can replace $a_3$ by $\mu x_3$ in the third slot. The result is
+\begin{equation}
+    \label{eqn:induct_a1}
+    a_1 \geq f_1(a_1,\mu x_2.f_2(a_1,x_2,\mu x_3.f_3(a_1,x_2,x_3)), \mu x_3.f_3(a_1,\mu x_2.f_2(a_1,x_2,x_3),x_3))
+\end{equation}
+Finally, we replace $a_1$ by $\mu x_1$ on RHS. The resulting inequality is precisely $a_1 \geq a_1'$.
+
+Now we generalize this method to $n$. With some trial and error, we can formulate the general form of the RHS of \autoref{eqn:induct_a1}. This is written down in \autoref{lem:nested_ineq}. Notice this inequality is one step short of proving $a_i \geq a_i'$, as another replacement of $a_i$ by $\mu x_i$ would yield $a_i'$ on the RHS and would give us the desired inequality immediately following \autoref{def:nested}.
+
+\begin{blemma}[Nested Inequality]
+\texttt{general\_Bekic\_claim}
+    \label{lem:nested_ineq}
+    
+    Let $L_1,\dots,L_n$ be complete lattices and $f:L_1\times\dots\times L_n\rightarrow L_1\times\dots\times L_n$ be a monotone map. Let $(a_1,\dots,a_n)$ be a fixpoint of $f$. Then 
+    \begin{equation}
+        \label{eqn:nested_ineq}
+        a_i\geq f_i(\lambda j. ?j=i:a_i; nested(n,j,B_\bot (i\mapsto a_i),f))
+    \end{equation}
+\end{blemma}
+\begin{proof}[Sketch of Formal Proof Architecture]
+    The proof is based on an induction on $n$. The Isabelle proof follows Claim 6 of \cite{xu2025}.
+
+    When $n=0$, there is nothing to prove mathematically. The formal proof specifies that we are in a \texttt{cart\_prod\_lattice} locale which derives a contradiction from the assumption that length of the list of complete lattices is positive.
+
+    When $n=1$, we have $LHS = RHS = a_1$ mathematically. Isabelle is able to automatically deduce this equality.
+
+    When we have $n>1$, the mathematical proof gets involved with the interplay of function specialization with fixpoint unfolding (\texttt{spF\_LFP\_eq\_unfold}), monotonicity (\texttt{mono\_specialize\_mono}), partial function specialization (\texttt{nested\_sp\_compat}), coordinate shifting (\texttt{specialize\_proj\_eq}) and several other operations. Technically, two points are noteworthy:
+
+    \begin{itemize}
+        \item The proof begins with interpretation of the relevant locales. We are able to interpret locales conditionally, i.e. \texttt{Ls\_j: complete\_lattice "Ls ! (j-1)"} for a fixed \texttt{j}. This is a powerful feature that we are able to exploit.
+        \item The bulk of the proof involves case distinctions around vector equality. To show that $(a_1,\dots,a_n)=(b_1,\dots,b_n)$, due to the coordinate shift introduced by function specialization, we are often required to carefully split $\{1..n\}$ into cases and show equality coordinate-wise on each case. This is a major labor-intensive point of Isabelle proof that is not reflected in a pen-and-paper proof.
+    \end{itemize}
+\end{proof}
+
+With \autoref{lem:nested_ineq}, we are ready to conclude $a_i' \leq a_i$. We have the following inequality, recalling \autoref{def:nested}:
+\begin{align}
+    a_i &\geq \mu x_i. f_i(\lambda j. ?j=i:x_i; nested(n,j,B_\bot (i\mapsto x_i),f)) \\
+    & = nested(n,i,B_\bot,f) \\
+    & = a_i' \label{eqn:ai_ge_ai'}
+\end{align}
+which is exactly the inequality we want.
+
+\subsection{the Reverse Inequality}
+To prove $LHS \leq RHS$ which is $a_i\leq a_i'$, we use the idea of \cite{arnold2001rudiments}: to give another fixpoint of $f$ with $a_i'$ at the $i$-th coordinate, while the other coordinates $j$ has some other expression. To be precise, the expression at coordinate $j$ is $a_j'$, but unfolded one-step further as a fixpoint. This inequality needs the induction hypothesis, in particular on specialized functions of the form $Sp_{j,\_}f$. To do so, we first specialize the $i$-th slot of $f$ to $a_i'$. Using \autoref{eqn:fn_specialize}, we get
+\begin{equation}
+    \label{eqn:sp}
+    Sp_{i,a_i'}f(\vec{y}) = (f_1(E_{i,a_i'}(\vec{y})),\dots,f_{i-1}(E_{i,a_i'}(\vec{y})),f_{i+1}(E_{i,a_i'}(\vec{y})), \dots, f_n(E_{i,a_i'}(\vec{y})))    
+\end{equation}
+
+Next we use IH on $Sp_{i,a_i'}f$. It is easy to see that $Sp_{i,a_i'}f$ is monotone so
+\begin{equation}
+    \label{eqn:general_Bekic_IH}
+    \mu \begin{bmatrix}
+    y_1 \\ \dots \\ y_{n-1}
+\end{bmatrix}. \begin{bmatrix}
+    (Sp_{i,a_i'}f)_1(\vec{y}) \\ \dots \\ (Sp_{i,a_i'}f)_{n-1}(\vec{y})
+\end{bmatrix} = \begin{bmatrix}
+    nested(n-1,1,B_\bot,Sp_{i,a_i'}f) \\ \dots \\ nested(n-1,n-1,B_\bot,Sp_{i,a_i'}f)
+\end{bmatrix}
+\end{equation}
+In words, we have the $k$-th coordinate of the vectorial fixpoint $(\mu \vec{y}.Sp_{i,a_i'}f)_k$ satisfying $(\mu \vec{y}.Sp_{i,a_i'}f)_k = nested(n-1,k,B_\bot,Sp_{i,a_i'}f)$.
+
+To proceed, we would like to rewrite the RHS of \autoref{eqn:general_Bekic_IH} using nested fixpoints of $f$ itself. This will enable us to use the induction hypothesis. The precise equality we need is
+
+\begin{blemma}[Shift Lemma]
+
+\texttt{nested\_sp\_compat}
+
+
+\label{lem:shift}
+    Let $i,j\in \{1,\dots,n\}$, where $n>1$. Let $b_j\in L_j$. Let $B$ be a partial map. Then
+    \begin{equation}
+        \label{eqn:shift}
+        nested(n,i,B(j\mapsto b_j), f) = \begin{cases}
+            nested(n-1,i,Sp_jB,Sp_{j,b_j}f) & \text{ if } i<j \\
+            nested(n-1,i-1,Sp_jB,Sp_{j,b_j}f) & \text{ if } i>j
+        \end{cases}
+    \end{equation}
+\end{blemma}
+\begin{proof}[Sketch of Formal Proof Architecture]
+    By induction on the number of undefined entries of $B$. For details, see Lemma 5 of \cite{xu2025}.
+
+    When $n=0$, the Isabelle locale makes an assumption that derives a contradiction.
+
+    When $n=1$ there is nothing to prove.
+
+    When $n>1$ the bulk of the mathematics proof is technically similar to that of \texttt{general\_Bekic\_claim}, involved mostly in distinguishing cases of vector coordinates and showing equality in each case. The difference is that instead of considering specializing functions, the interaction is between the specializing of partial map \texttt{specialize\_env} and other technical operations. 
+\end{proof}
+
+We apply \autoref{lem:shift} to \autoref{eqn:general_Bekic_IH}. When $1\leq k<i$, we have $nested(n,k,B(i\mapsto a_i'), f) = nested(n-1,k,Sp_iB,Sp_{i,a_i'}f)$. When $n-1\geq k\geq i$, we have that $k+1>i$, so $nested(n,k+1,B(i\mapsto a_i'), f) = nested(n-1,k,Sp_iB,Sp_{i,a_i'}f)$. Then \autoref{eqn:general_Bekic_IH} becomes
+\begin{equation}
+    \label{eqn:IH'}
+    \mu \begin{bmatrix}
+    y_1 \\ \dots \\  y_{i-1}\\y_i \\ \dots \\ y_{n-1}
+\end{bmatrix}. \begin{bmatrix}
+    (Sp_{i,a_i'}f)_1(\vec{y}) \\ \dots \\ (Sp_{i,a_i'}f)_{i-1}(\vec{y}) \\ (Sp_{i,a_i'}f)_{i}(\vec{y}) \\ \dots \\ (Sp_{i,a_i'}f)_{n-1}(\vec{y})
+\end{bmatrix} = \begin{bmatrix}
+    nested(n,1,B_\bot(i\mapsto a_i'),f) \\ \dots \\ nested(n,i-1,B_\bot(i\mapsto a_i'), f) \\ nested(n,i+1,B_\bot(i\mapsto a_i'), f) \\ \dots \\  nested(n,n,B_\bot(i\mapsto a_i'),f)
+\end{bmatrix}
+\end{equation}
+\autoref{eqn:IH'} helps us construct a fixpoint of $f$, and its RHS indicates to us what expressions we should use to combine with $a_i'$. We write these expressions formally as $a_k''$:
+\begin{equation}
+    \label{eqn:ak''}
+a_k'' \equiv \begin{cases}
+    nested(n,k,B_\bot(i\mapsto a_i'),f) & k<i \\
+    nested(n,k+1,B_\bot(i\mapsto a_i'),f) & n > k\geq i
+\end{cases}
+\end{equation}
+for $k\in \{1..n-1\}$. Then we can concoct a fixpoint for $f$ using $a_i'$ at the $i$-th coordinate and $a_k''$ elsewhere. The following lemma says that this is indeed a fixpoint of $f$.
+\begin{lemma}
+    \label{lem:ai_le_ai'}
+    $E_{i,ai'}(a_1'',\dots,a_{n-1}'')$ is a fixpoint of $f$.
+\end{lemma}
+\begin{proof}
+    It suffices to show the equality coordinate-wise, by showing that
+    \[f_i(E_{i,ai'}(a_1'',\dots,a_{n-1}'')) = a_i'\] and 
+    \begin{equation*}
+        f_h(E_{i,ai'}(a_1'',\dots,a_{n-1}'')) = \begin{cases}
+            a_h'' & h<i \\
+            a_{h-1}'' & h> i
+        \end{cases}
+    \end{equation*} 
+    for other coordinates $h\neq i$.
+    The second equality follows directly from \autoref{eqn:IH'}, where a cancelation of $(+1)$ and $(-1)$ occurs. For the first equality, note that 
+    \begin{align*}
+        a_i' &= nested(n,i,B_0,f) \\
+             &= \mu x_i. f_i(\lambda j. ?j=i:x_i; nested(n, j, B_\bot(i\mapsto a_i'), f)) \\
+             &= \mu x_i. f_i(\lambda j. ?j=i:x_i; ?j<i: a_j''; a_{j-1}'')
+    \end{align*}
+    Observe that $E_{i,ai'}(a_1'',\dots,a_{n-1}'') = (\lambda j. ?j=i:a_i';j<i: a_j''; a_{j-1}''$). Hence from the third inequality above we get $a_i' = f_i(E_{i,ai'}(a_1'',\dots,a_{n-1}''))$. This finishes the proof.
+\end{proof}
+
+\begin{proof}[Sketch of Formal Proof Architecture]
+    The formal Isabelle proof of this lemma is subsumed as part of the proof of \texttt{general\_Bekic}. The code constructs a \texttt{?new\_fp\_hat\_i} to denote $E_{i,ai'}(a_1'',\dots,a_{n-1}'')$. It proceeds to show that this vector has the correct image in each coordinate, and is indeed a fixpoint of the operator $f$.
+\end{proof}
+
+From \autoref{lem:ai_le_ai'}, we get $a_i\leq a_i'$. Combined with \autoref{eqn:ai_ge_ai'}, we have obtained a proof for \autoref{thm:general_bekic}.
+
+\section{Translation from \texorpdfstring{\GLs{}}{} to \rlGL{}}
+\label{sec:trans_GLs_rlGL}
+
+The translation from \GLs{} to \rlGL{} is the most mathematically sophisticated among all translations considered in this thesis; arguably it is one of the most sophisticated translations in \cite{Wafa_2024} too. This is because one needs to collapse the semantical space and pass the information over to syntax. To be precise, since \rlGL{} semantics does not have sabotage contexts, it must encode the semantical information contained in sabotage contexts from \GLs{}. Since \GLs{} gameplay has inherently dynamic sabotage context that cannot be predicted just by statically checking a game expression, a translation from \GLs{} to \rlGL{}, being inherently a static operation, must be able to universally encode all dynamic contexts that could occur during nondeterministic repetition games. Fortunately, this is possible due to the finitary nature of sabotage contexts: at any time of a play of a \GLs{} game, there are only finitely many contexts that could possibly occur in the future. The impact of extending the sabotage semantics to the infinity realm is an interesting but wide open subject for future study.
+
+\subsection{Syntactic Beki\v{c} Principle}
+The generalized semantical Beki\v{c} principle \autoref{thm:general_bekic} works for complete lattices, which are semantical objects. Recall that for family of game logics including \GL{}, \RGL{} and \rlGL{}, the interpretation of games is into the complete lattice of effective functions $\W|\N|$ for a neighborhood structure $\N$. Recall also that repetition games $\alpha^*$ is in essence a \textit{syntactic fixpoint}, that is, a syntactic object representing a semantical fixpoint. Therefore, to apply \autoref{thm:general_bekic} to the translation setting, we need to lift the nested fixpoint up to the syntactic world and establish the following theorem.
+
+\begin{btheorem}[Syntactic Beki\v{c}]
+\texttt{nested\_fp\_game\_exists\_nodual}
+\label{thm:syntactic_bekic}    
+
+For variables $x_1,\dots,x_n$ and \rlGL{} games $\alpha_1,\dots,\alpha_n$ there are \rlGL{} games $\beta_1,\dots,\beta_n$ such that
+
+\begin{equation}
+    \label{eqn:syn_Bekic}
+    \mu \begin{bmatrix}
+    w_1 \\ w_2 \\ \dots  \\ w_n
+\end{bmatrix}. \begin{bmatrix}
+    \N\ddl\alpha_1\ddr^{I[\vec{x}\mapsto \vec{w}]} \\ \N\ddl\alpha_2\ddr^{I[\vec{x}\mapsto \vec{w}]} \\
+    \dots \\
+    \N\ddl\alpha_n\ddr^{I[\vec{x}\mapsto \vec{w}]}
+\end{bmatrix} = \begin{bmatrix}
+    \N\ddl\beta_1\ddr^{I} \\ 
+    \N\ddl\beta_2\ddr^{I} \\
+    \dots \\
+    \N\ddl\beta_n\ddr^{I}
+\end{bmatrix}
+\end{equation}
+
+\end{btheorem}
+
+We achieve this by constructing the syntactic fixpoints $\beta_1,\dots,\beta_n$ directly by substitution. This mirrors the semantical substitution operation in \autoref{def:nested}.
+
+\begin{bdefinition}[Iterated Substitution]
+\label{def:iter_sub}
+\texttt{iter\_sub i xs gs B}
+
+Let $x_1,\dots,x_n$ be variables and $\alpha_1,\dots,\alpha_n$ be \rlGL{} games. Let $B$ be a subset of $\{1..n\}$. Then
+
+\begin{align}
+    iter\_sub(i,\vec{x},\vec{\alpha},B)
+    = \Rec x_i. (\alpha_i[\forall k\in B-\{i\}, x_k\mapsto iter\_sub(k,\vec{x}, \vec{\alpha},B-\{i\})])
+\end{align}
+\end{bdefinition}
+
+In the above definition, the expression enclosed in the bracket $[\dots]$ is a substitution that substitutes each instance of $x_k$ by a recursive call to $iter_sub$ whenever $k\in B-\{i\}$. The fixpoint that mirrors the semantic one is contained in $\Rec$. With this definition we can show the compatibility between iterated substitution and nested fixpoints.
+
+We define the following semantic substitution operation.
+
+\begin{bdefinition}[Semantic Substitution]
+\texttt{nary\_subst\_op}
+
+Let $x_1,\dots,x_n$ be variables and $\alpha_1,\dots,\alpha_n$ be \rlGL{} games. Fix a neighborhood structure $\N$ and valuation $I$. Then
+
+    \[nary\_subst\_op(\N,I,\vec{x},\vec{\alpha})(w) \coloneq (\lambda j\in\{1..n\}. \N\ddl(\alpha_j)\ddr^{I[\vec{x}\mapsto \vec{w}]})\]
+\end{bdefinition}
+
+Observe that $nary\_subst\_op(\N,I,\vec{x},\vec{\alpha})$ is precisely the vectorial monotone operator in the LHS of \autoref{eqn:syn_Bekic} for fixed $\vec{x}$ and $\vec{\alpha}$.
+
+
+\begin{btheorem}[Syntactic and Semantic Fixpoint Compatible]
+\label{thm:nested__iter_sub}
+\texttt{nested\_\_iter\_sub}
+
+Fix a neighborhood structure $\N$ and valuation $I$. Let $n\in \bbN$, $i\in\{1..n\}$, $x_1,\dots,x_n$ be variables, $\alpha_1,\dots,\alpha_n$ be \rlGL{} games, $B$ be a partial map with domain $\{1..n\}$ and codomain $\W(|\N|)$. Suppose $i\notin \dom B$. Then
+
+\begin{multline}
+    nested (n,i,B,nary\_subst\_op(\N,I,\vec{x},\vec{\alpha})) \\
+ = \N \ddl(iter\_sub(i,\vec{x},\vec{\alpha},\{1..n\}-\dom B)\ddr^{I[\forall i \in \dom B. x_i\mapsto B(i) ]}
+\end{multline}
+
+Hence by semantic Beki\v{c} theorem \autoref{thm:general_bekic}, letting $B=B_\bot$,
+\begin{equation}
+    \label{eqn:syn_Bekic}
+    \mu \begin{bmatrix}
+    w_1 \\ w_2 \\ \dots  \\ w_n
+\end{bmatrix}. \begin{bmatrix}
+    \N\ddl\alpha_1\ddr^{I[\vec{x}\mapsto \vec{w}]} \\ \N\ddl\alpha_2\ddr^{I[\vec{x}\mapsto \vec{w}]} \\
+    \dots \\
+    \N\ddl\alpha_n\ddr^{I[\vec{x}\mapsto \vec{w}]}
+\end{bmatrix} = \begin{bmatrix}
+    \N\ddl iter\_sub (1, \vec{x}, \vec{\alpha}, \{1..n\})\ddr^{I} \\ 
+    \N\ddl iter\_sub (2, \vec{x}, \vec{\alpha}, \{1..n\})\ddr^{I} \\
+    \dots \\
+    \N\ddl iter\_sub (n, \vec{x}, \vec{\alpha}, \{1..n\})\ddr^{I}
+\end{bmatrix}
+\end{equation}
+    
+\end{btheorem}
+
+\begin{proof}[Sketch of Formal Proof Architecture]
+For all proofs in this thesis involving $iter\_sub$, the induction proceed by the cardinality of the parameter $B$. This is because the parameter decreases monotonically through the recursive calls. In this theorem, the parameter has value $\{1..n\}-\dom B$, where $B$, abusing notation, is the partial map supplied to $nested$. So we induct on this.
+
+When $\{1..n\} - \dom B = \emptyset$, $B$ is occupied for each coordinate. In particular $i\in \dom B$. This is a contradiction.
+
+When $\{1..n\} - \dom B$ is non-empty, we simplify both $nested$ and $iter\_sub$ by one step, exposing the recursive call, then apply the induction hypothesis. The theorem follows by a series of fixpoint unfoldings.
+    
+\end{proof}
+
+With \autoref{thm:nested__iter_sub}, \autoref{thm:syntactic_bekic} follows immediately. We introduce a notation for iterated substitutions. Let
+
+\[r_i(x_1,\dots,x_n). (\alpha_1,\dots,\alpha_n) \coloneq iter\_sub (i, \vec{x}, \vec{\alpha}, \{1..n\})\]
+
+This captures the intuition that the fixpoint is evaluated simultaneously for all of $x_i$ and $\alpha_i$.
+
+\subsection{Translation}
+We finally have adequate preparation to write the translation from \GLs{} to \rlGL{}. Let $y_\bullet$ be a set of fresh variables, where $\bullet$ is any sabotage context. We are going to use $y_\bullet$ to mark the continuation of games. The $z_\bullet$ is also a set of fresh variables where $\bullet$ is context, but it is freshly generated depending on the AST depth of the game. Further explanation will follow the definition of the translation.
+
+\begin{bdefinition}[Translation from \GLs{} to \rlGL{}]
+\texttt{GLs\_gm2RGL, GLs\_fml2RGL}
+
+Let $c$ be a sabotage context. Then the translation $(\cdot)^c$ from \GLs{} to \RGL{} is given mutually recursively by
+\begin{center}
+\begin{tabular}{l l}
+    $ \GLsrl{c}{P} = \Test P; \DTest\bot$ 
+    & $\GLsrl{c}{\neg P } = \Test\neg P; \DTest\bot$ \\
+    & $\GLsrl{c}{(\neg\  \underline{\hspace{8pt}})} = \bot$ \\
+    $\GLsrl{c}{(\langle\alpha\rangle\phi)} = \GLsrl{c}{\alpha}[(\GLsrl{\bullet}{\phi}; \Test\bot)/y_\bullet]$ \\
+    $\GLsrl{c}{(\phi\vee\psi)}=\GLsrl{c}{\phi}\cup \GLsrl{c}{\psi}$ 
+    & $\GLsrl{c}{(\phi\wedge\psi)}=\GLsrl{c}{\phi}\cap \GLsrl{c}{\psi}$ \\
+    $\GLsrl{c}{a} =\begin{cases}
+        a; y_c & \text{ if } c(a) = \emptyset \\
+        y_c     & \text{ if } c(a) = \diamond \\
+        \Test \bot  & \text{ if } c(a) = \ssquare
+    \end{cases}$ 
+    & $\GLsrl{c}{(\Dual{a})} =\begin{cases}
+        \Dual{a}; y_c & \text{ if } c(a) = \emptyset \\
+        \DTest\bot     & \text{ if } c(a) = \diamond \\
+        y_c  & \text{ if } c(a) = \ssquare
+    \end{cases}$ \\
+    $\GLsrl{c}{\sim a} = y_{c\frac{\diamond}{a}}$ 
+    & $\GLsrl{c}{(\Dual{\sim a})} = y_{c\frac{\ssquare}{a}}$ \\
+    & $\GLsrl{c}{(\Dual{(\underline{\hspace{8pt}})})} = \bot$ \\
+    $\GLsrl{c}{(\Test\phi)}=\GLsrl{c}{\phi}\cap y_c$
+    & $\GLsrl{c}{(\DTest\phi)}=\GLsrl{c}{\overline \phi}\cup y_c$ \\
+    $\GLsrl{c}{(\alpha\cup\beta)}=\GLsrl{c}{\alpha}\cup \GLsrl{c}{\beta}$ 
+    & $\GLsrl{c}{(\alpha\cap\beta)}=\GLsrl{c}{\alpha}\cap \GLsrl{c}{\beta}$ \\
+    $\GLsrl{c}{(\alpha;\beta)}=\GLsrl{c}{\alpha}[\GLsrl{\bullet}{\beta}/y_\bullet]$ \\
+    \end{tabular}
+    \end{center}
+
+    Let $c_1,\dots,c_n$ be all contexts that agree with $c$ outside of atomic games of $\alpha$. This implies $c=c_i$ for some $i$. We define
+    \begin{align*}
+        & \GLsrl{c_i}{(\alpha^*)} = \Rec_i(z_{c_1},\dots,z_{c_n}). (y_{c_1}\cup \alpha^{c_1}\frac{z_{c_\bullet}}{y_{c_\bullet}},\dots,y_{c_n}\cup \alpha^{c_n}\frac{z_{c_\bullet}}{y_{c_\bullet}}) \\
+    & \GLsrl{c_i}{(\alpha^\times)} = \DRec_i(z_{c_1},\dots,z_{c_n}). (y_{c_1}\cap \alpha^{c_1}\frac{z_{c_\bullet}}{y_{c_\bullet}},\dots,y_{c_n}\cap \alpha^{c_n}\frac{z_{c_\bullet}}{y_{c_\bullet}})  \\
+    \end{align*}
+
+\end{bdefinition}
+
+The translations only work on normal forms, so $\Dual{(\cdot)}$ other than atomic duals are not considered, nor are $\neg(\cdot)$ other than atomic negations.
+
+One needs to take care when translating $\DTest$. There is a first syntactic complement, which is also in normal form, followed by the translation on that complemented formula.
+
+We can observe that $y_\bullet$ are generated by atomic game translations only. We assume that atomic games $a$ under $c(a)=\emptyset$ always comes with a game continuation $y_c$, and make a concession accounting for this assumption in the soundness theorem. When $c(a) = \diamond$, the game $a$ is skipped and we go directly to the continuation $y_c$. When $c(a) = \ssquare$ there is no continuation because Angel loses. For $\Dual{a}$ the situation is inverted.
+It is evident that in $\langle\alpha\rangle\phi$ and $\alpha; \beta$, the $y_\bullet$ variables are consumed by their game continuation. 
+
+The translations of $\alpha^*$ and $\alpha^\times$ are the most interesting. We expand on the $\alpha^*$ case. For any context $c$, we list the contexts $c_1,\dots,c_n$ to be those having the same value as $c$ outside of the set of atomic games contained in $\alpha$. This is a finite list because only the finite set of atomic games inside $\alpha$ can change in sabotage status through repeated plays of $\alpha$. This implies that $c=c_i$ somewhere in the list. In any round of this game, Angel either chooses to stop $\alpha^*$ and play the continuation $y_{c_i}$, or play $\alpha$ one more time. However, for such a choice the continuation $y_{c_\bullet}$ must be replaced by $z_{c_\bullet}$ which is also a continuation variable but under recursion. The effect is that when $z_{c_\bullet}$, Angel remakes the decision whether to move on or play $\alpha$ once more, hence the repetition. Overall, the translation expresses repetition as structured recursion.
+
+There is a slight mistake in the same translation given by \cite{Wafa_2024}, that is, it lists $c_1,\dots,c_n$ to be the contexts where every atomic game outside $\alpha$ is not sabotaged. A priori, there is no reason to assume the incoming sabotage context $^c$ satisfies this constraint. Repeated plays of $\alpha$ will modify games inside it, but other games outside it might be sabotaged already in prior games. Moreover, consider the case where $y_{c_\bullet}$ is continued to yet another repetition game. Our corrected translation preserves this context information at \textit{that} repetition game by listing $c_1,\dots,c_n$ that has unchanged sabotage status outside of the repetition, instead of clearing it to $\emptyset$ like the translation in  \cite{Wafa_2024} would. This point also affects the soundness proof.
+
+\begin{remark}[On Engineering the list $(c_i)_i$]
+    In the current Isabelle implementation, the list $c_1,\dots,c_n$ does not come a priori with indices. It is given by existential Hilbert choice from the \textit{set} of contexts satisfying our constraints. What we do have is list membership and well-defined \textit{properties} of the list index for any $c_i$, rather than an explicit number $i$ computable given some $c = c_i$. If one wants to add explicit list index, he must order the contexts explicitly according to some rule. That is not necessary for our purpose, but can be done in the future as a good engineering exercise.
+\end{remark}
+
+\begin{example}
+    We work out an example translation for \autoref{ex:GLs_notnormal}. We have already established that the normal form of this formula is
+    \[\langle(\sim a \cup \sim b ; \Dual{\sim a}\cap \Dual{\sim b}; \Dual{a}\cap \Dual{b})^\times\rangle P\]
+
+    
+\end{example}
+
+\subsection{Soundness}
+We prove soundness for the $\alpha^*$ case. 
+
+\begin{proof}[Soundness of Repetition Case]
+    Let $c$ be some context and list the contexts $c_1,\dots,c_n$ whose value is the same as $c$ outside of atomic games contained in $\alpha$. Then $c=c_i$ for some $i$. The translation is $\GLsrl{c}{(\alpha^*)} = \GLsrl{c_i}{(\alpha^*)} = \Rec_i(z_{c_1},\dots,z_{c_n}). (y_{c_1}\cup \alpha^{c_1}\frac{z_{c_\bullet}}{y_{c_\bullet}},\dots,y_{c_n}\cup \alpha^{c_n}\frac{z_{c_\bullet}}{y_{c_\bullet}})$. This step is only possible because $c$ falls into the list $c_1,\dots,c_n$.
+
+    Fix $B_i = \N\ddl\GLsrl{c_i}{(\alpha^*)}\ddr^I$. From \autoref{eqn:syn_Bekic}, we know that $B_i$ is the $i$-th component of the fixpoint of the semantic substitution operator.
+
+    \[B_i = \N\ddl y_{c_i}\cup \alpha^{c_i}\frac{z_{c_\bullet}}{y_{c_\bullet}} \ddr^{I[z_{c_\bullet} \mapsto \N\ddl(\alpha^*)^{c_\bullet}\ddr^I]}\]
+
+    The RHS reduces via the compatibility of syntactic and semantic substitutions to
+
+    \[\N\ddl y_{c_i}\cup \alpha^{c_i}\frac{(\alpha^*)^{c_\bullet}}{y_{c_\bullet}} \ddr^{I}(\emptyset) = \N\ddl y_{c_i}\ddr^I \cup \N\ddl\alpha^{c_i}\ddr^{I[y_\bullet \mapsto \N\ddl (\alpha^*)^{c_\bullet}\ddr^I]}(\emptyset) \]
+
+    The RHS is equal to 
+
+    \[U \restriction_{c_i} \cup \N\ddl \alpha^{c_i}\ddr^{I[y_\bullet \mapsto B_\bullet]}(\emptyset) \]
+
+    By IH, writing $B = \bigcup_{i=1}^n B_i \times \{c_i\} $, we reduce this to
+
+    \[U \restriction_{c_i} \cup \N\ddl \alpha\ddr_s(B) \restriction _{c_i} \]
+
+    Note that the induction principle has no restriction on the sabotage context passed as argument. Here we apply it on $c=c_i$ which could have atomic games outside $\alpha$ non-trivially sabotaged. This is not possible in the constructino of \cite{Wafa_2024} that additionally clears this sabotage status, creating a mismatch between IH and what we need to prove.
+\end{proof}

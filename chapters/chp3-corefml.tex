@@ -1,0 +1,261 @@
+% !TEX root = ../thesis.tex
+
+\chapter{Core Formalization} 
+\label{chp:core_fml}
+
+Even though the family of fixpoint logics receive a good amount of theoretical attention, not every one of them is practically ubiquitous. On the formalization side, metatheories of fixpoint logics are severly under-explored. Indeed, a search through the Archive of Formal Proofs using the keyword ``Logic'' returns only one entry on differential game logic \cite{Differential_Game_Logic-AFP} and a search with ``calculus'' returns no information related to $\Lmu{}$. The formalization presented in this thesis might be the first one exploring extensively the metatheory of fixpoint logics, mostly with regards to semantical expressiveness.
+
+Here are three speculated reasons why formalization of fixpoint logics may be difficult or unpopular. Firstly, any logics involving variables will have to deal with delicate substitution issues. Proof engineers will have to make their way through free variables, binding of variables, various renaming procedures, generation of fresh variables, et cetera. This makes formalization more labor-intensive. Secondly, there is a strong recursive component that proof engineers have to deal with, often involving mutual recursion. This will necessitate construction of custom induction rules, the support of which varies between proof assistants. Thirdly, it is often not easy to decide on the appropriate libraries to use for the formalization. In this project the HOL-Algebra library seems a very good choice, but that still comes with the caveat that product lattice has to be written in-house (see \autoref{subsec:lattice_locale}). As mathematics formalization usually turn into labor-intensive infrastructure work very quickly, the absence of good libraries may deter proof engineers from attempting fixpoint logics as a target. Fortunately, these issues are solved in this thesis.
+
+This chapter proceeds as follows. \autoref{sec:formal_syntax} discusses concrete syntax. \autoref{sec:formal_semantics} discusses concrete semantics. As both syntax and semantics are already given in \autoref{chp:preliminaries} with matching \texttt{names} in Isabelle, we aim to highlight interesting formalization issues without repeating definitions.
+
+\section{Formalization of Syntax}
+\label{sec:formal_syntax}
+
+\subsection{Variable Binding and Positivity}
+In \RGL{}, reasoning with free and bound variables (\texttt{free\_var, free\_var\_game, RGL\_gm\_bdd\_var, RGL\_fml\_bdd\_var}) comes with some intricate details. Specifically, the \textit{positive normal form} as mentioned in \autoref{chp:preliminaries} prescribes that an \RGL{} normal form expression does not have varible $x$ occuring within the scope of a $\Dual{}$ directly above it. In intuitive terms, $\Dual{x}$ does not appear. The restrictions on the enriched \RGL{} syntax \autoref{def:RGL_enriched_syntax} can guarantee that normalization $n_G$ and $n_F$ has output in positive normal form, and they are given as follows.
+
+\begin{blemma}[\RGL{} Criterion for Positive Normal Form]
+
+\texttt{RGL\_var\_tame\_nodual}
+
+Let $g$ be an \RGL{} game. If $g$ satisfies
+
+\begin{enumerate}
+    \item For each free variable $x$ in $g$, $x$ appears in a scope of even number of $\Dual{(\cdot)}$ constructors.
+    \item Any bounded variable appears in a scope of even number of $\Dual{(\cdot)}$ constructors.
+    \item Any subformula $f$ contained in a subgame $\Test f$ in $g$ is closed.
+\end{enumerate}
+
+Then $n_G(g)$ is in positive normal form.
+    
+\end{blemma}
+\begin{proof}
+    We give Isabelle names for the above conditions:
+    \begin{enumerate}
+        \item \texttt{RGL\_even\_dual 0 x g} if a free $x$ appears in a scope of an even number of duals.
+        \item \texttt{RGL\_bdd\_even g} if all bound variables in $g$ appear in a scope of an even number of duals.
+        \item \texttt{RGL\_tt\_closed g} if all subgames $\Test f$ is closed. This is an inductive predicate.
+    \end{enumerate}
+    One needs to demonstrate that all three conditions are invariant under normalization $n_G$ and $n_F$. This is mostly standard structural induction, other than the recursion game cases where invariance under syntactic dual $\syd$ must be shown. For \texttt{RGL\_even\_dual}, one also needs to show $\syd$ flips it to a form where all free variables occur in odd number of duals and vice versa. This is called \texttt{RGL\_odd\_dual} in Isabelle. 
+\end{proof}
+
+After proving this lemma, we are ready to give a precise inductive definition of positive normal forms. We borrow in large part the normal form syntax in \autoref{def:RGL_nml_gm_RGL_nml_fml}. This is defined with respect to some free variable $x$. Let $PNG$ and $PNF$ be \RGL{} games and formulas in positive normal forms. $PNF$ simply propagates the condition into its subgames.
+
+\begin{bdefinition}[\RGL{} Positive Normal Form]
+\label{def:RGL_nodual_gm_RGL_nodual_fml}
+\texttt{RGL\_gm\_nodual x, RGL\_fml\_nodual x}
+
+\begin{mathpar}
+\inferrule*[Right=AtmGame]{a \text{ atomic game}}{a \in PNG}
+\and
+\inferrule*[Right=Var]{x \text{ variable}}{x \in PNG}
+\\
+\inferrule*[Right=Test]{f\in PNF}{\Test{f} \in PNG}
+\and
+\inferrule*[Right=DTest]{f\in PNF}{\DTest f \in PNG}
+\and
+\inferrule*[Right=Choice]{g\in PNG \\ h \in PNG}{g\cup h \in PNG}
+\\
+\inferrule*[Right=DChoice]{g\in PNG \\ h \in PNG}{g\cap h \in PNG}
+\and
+\inferrule*[Right=Seq]{g\in PNG \\ h \in PNG}{g ; h \in PNG}
+\\
+\inferrule*[Right=Rec]{g\in PNG}{\Rec x. g \in PNG}
+\and
+\inferrule*[Right=DRec]{g\in PNG}{\DRec x. g \in PNG}
+\\
+\inferrule*[Right=AtmFml]{P\text{ atomic formula}}{P \in PNF}
+\and
+\inferrule*[Right=NotAtmFml]{P\text{ atomic formula}}{\neg P \in PNF}
+\\
+\inferrule*[Right=Or]{f\in PNF \\ g \in PNF}{f\vee g \in PNF}
+\and
+\inferrule*[Right=And]{f\in PNF \\ g \in PNF}{f\wedge g \in PNF}
+\\
+\inferrule*[Right=Diam]{\alpha \in PNG \\ f\in PNF}{\langle\alpha\rangle f \in PNF}
+
+\end{mathpar}
+\end{bdefinition}
+
+Positive normal form is specially important for semantical analysis, not only for the reason of player control mentioned in \autoref{subsec:RGL_nml}, but also because the absence of $\Dual{}$ guarantees that effective functions are well-behaved instead of flipped over by duality of effective functions $f\leq g \equiv \Dual{g} \leq \Dual{f}$. We will mostly be working with positive normal forms in this thesis.
+
+\subsection{Structural Induction Beyond Syntax Trees}
+Inductive predicates exist ubiquitously in this project because of the need for dealing with interacting syntaxes. The specific inclusions that are realized by inductive predicates are:
+
+\begin{enumerate}
+    \item $NF, NG, PNG, PNF$ in \RGL{}
+    \item $\Lmu{} \subset \FLC{}$
+    \item $\rlGL{} \subset \RGL{}$
+\end{enumerate}
+
+Because of the nature of inductive predicates, we have games in \rlGL{} included in $PNG$ and formulas in \rlGL{} included in $PNF$. This is by construction: one constructs these sets using closure over inductive rules, and these rules closely follow those of $PNG$ and $PNF$; in fact they are stricter rules. Interested readers are referred to the Isabelle lemmas \texttt{rl\_nodual} and \texttt{rl\_nodual'}, where \texttt{rl\_nodual\_game, rl\_nodual\_fml} quantifies over all variables for \autoref{def:RGL_nodual_gm_RGL_nodual_fml}.
+
+Inductive predicates are specially convenient because they offer inductive rules for free. In Isabelle, this is done automatically. For example, the inductive rules for (positive) normal forms are \texttt{RGL\_nml\_gm\_RGL\_nml\_fml\_induct} and \texttt{RGL\_nodual\_game\_RGL\_nodual\_fml\_induct} respectively.
+
+Besides automatic induction rules offered by inductive predicates, we provide strong induction principles based on lengths and ranks.
+
+Induction by length of logical formulas is a common technique in mathematical logic. We have generalized it for mutually recursively defined \RGL{} syntax. The length of any \RGL{} game or formula is canonically defined.
+
+\begin{blemma}[Mutual Induction on Length]
+\texttt{RGL\_len\_mutual\_induct\_std}
+
+    Let $P,Q$ be predicates. Suppose for each game $g$ of length $n$, $P(g')$ holds for every game $g'$ of length $<n$ and $Q(f')$ holds for every formula $f'$ of length $<n$ would imply $P(g)$. Suppose for each formula $f$ of length $m$, $P(g')$ holds for every game $g'$ of length $<m$ and $Q(f')$ holds for every formula $f'$ of length $<m$ would imply $Q(f)$. Then $P$ holds for every \RGL{} game and $Q$ holds for every \RGL{} formula.
+\end{blemma}
+
+If we let $P$ or $Q$ be the trivial predicate $\top$, we recover the usual induction principle by length of formulas and games respectively.
+
+When syntactical operations go more deeply into one layer of constructors, for example $\syd (\Rec x. g) = \DRec. \syd (g[\Dual{x}/x])$ when we are dealing with interacting $[\Dual{x}/x]$ and $\syd$ operations, we may need this stronger induction principle. In older versions of the Isabelle artifact, mutual induction on lengths was successfully applied to show the following innocent-looking lemma:
+
+\begin{blemma}[\RGL{} Free Variable Unchanged]
+\texttt{RGL\_dual\_free\_free\_var\_\_same}
+
+Let $g$ be an \RGL{} game and $f$ be an \RGL{} formula. Then $g[\Dual{x}/x]$ has the same free variables as $g$ and $f[\Dual{x}/x]$ has the same free variables as $f$.
+\end{blemma}
+
+However, later versions of the artifact have modified $[\Dual{x}/x]$ to become more efficient. Specifically, it reduces $\Dual{x}$ directly to $x$, instead of relying on adding an additional $\Dual{}$ and applying a reduction of double dual constructors. This change has reduced the difficulty of the proof such that mutual induction over length is no longer necessary. However, the induction principle remains a powerful technique.
+
+Another noteworthy induction principle is one over rank. This is defined for \GLs{} games and formulas. Rank is of an expression is usually defined as the depth of the abstract syntax tree of that expression, but for \GLs{} we adopt a slight nuance that ignores the level $\neg P$ in the tree. This helps with induction argument involving syntactic complements.
+
+The rank function $rk$ is given as follows.
+
+\begin{bdefinition}[\GLs{} Rank] 
+\label{def:GLs_rk}
+\texttt{GLs\_gm\_rk, GLs\_fml\_rk}
+
+    \begin{tabular}{l l}
+        $rk(P) = 1$ 
+        & $rk (\langle\alpha\rangle\phi) = max(rk (\alpha), rk(f)) + 1$ \\
+        $ rk( \neg\phi )= rk(\phi)$ 
+        & $rk(\phi\vee\psi)=max(rk (\phi), rk(\psi)) + 1$ \\
+        $rk(\phi\wedge\psi)=max(rk (\phi), rk(\psi)) + 1$ \\
+        $rk (a) = 1$ 
+        & $rk (\Test\phi)=rk(\phi)+1$ \\
+        $rk (\DTest\phi)=rk(\phi)+1$ \\
+        $rk(\sim a)= 1$ 
+        & $rk(\alpha\cup\beta)=max(rk (\alpha), rk(\beta)) + 1$ \\
+        $rk(\alpha\cap\beta)=max(rk (\alpha), rk(\beta)) + 1$ \\
+        $rk(\Dual{g})=rk(g)$ 
+        & $rk(\alpha;\beta)=max(rk (\alpha), rk(\beta)) + 1$ \\
+        $rk( g^*)=rk(g)+ 1$ 
+        & $rk( g^\times)=rk(g)+ 1$ \\
+        
+    \end{tabular}
+    
+\end{bdefinition}
+
+\begin{blemma}[Mutual Induction on Rank]
+\texttt{GLs\_rk\_mutual\_induct\_std}
+
+    Let $P,Q$ be predicates. Suppose for each game $g$ of length $n$, $P(g')$ holds for every game $g'$ of rank $<n$ and $Q(f')$ holds for every formula $f'$ of rank $<n$ would imply $P(g)$. Suppose for each formula $f$ of length $m$, $P(g')$ holds for every game $g'$ of rank $<m$ and $Q(f')$ holds for every formula $f'$ of rank $<m$ would imply $Q(f)$. Then $P$ holds for every \RGL{} game and $Q$ holds for every \GLs{} formula.
+\end{blemma}
+
+Using mutual induction on rank we can prove lemmas related to the translation from \GLs{} to \rlGL{}. These will be introduced in \autoref{chp:meta_fml}.
+
+\section{Formalization of Semantics}
+The most noteworthy aspect of semantics formalization is its interaction with existing Isabelle libraries. These are presented as \texttt{Locales}, which are collections of lemmas assuming some parameters and assumptions. For example, the following is a locale definition for groups:
+
+\begin{verbatim}
+    Locale Group:
+    fixes A :: 'a set
+          op :: A * A -> A
+    assumes 
+        op_assoc: ...
+        unit_exists:...
+        ...
+
+    lemma left_unique_implies_right: "..."
+    proof. ... qed.
+    
+    lemma unit_unique: "..."
+    proof. ... qed.
+\end{verbatim}
+
+A mature Isabelle algebra library such as the one by Bellarin \cite{HOL-Alg} contains many more advanced constructions. This happens to be the main library this thesis builds upon, because of the array of useful constructions that it supports, especially those involving complete lattices. 
+\label{sec:formal_semantics}
+
+\subsection{Monotone Neighborhood Structures}
+The formalization of monotone neighborhood structures in Isabelle is \texttt{Nbd\_Struct} as mentioned in \autoref{chp:preliminaries}. It is a record with a polymorphic set of states, an interpretation of atomic games into effective functions and an interpretation of atomic formulas into subsets of states. For \GLs{}, the polymorphic type parameter is a product \texttt{nat} $\times$ \texttt{cx}, where \texttt{cx} is the type of sabotage contexts. The type \texttt{nat} can be changed into any other type, as the arguments in this thesis can be parameterized over it. For \RGL{} this type parameter is just \texttt{nat}. Also mentioned in \autoref{chp:preliminaries} is a lifting operation \texttt{GLs\_lift\_nbd} that converts a neighborhood structure over \texttt{nat} to one over \texttt{nat} $\times$ \texttt{cx}, for use in \GLs{} semantics.
+
+\subsection{Effectivity Functions}
+The Isabelle name for effective functions is \texttt{effective\_fn\_of A}, parameterized over an arbitrary set \texttt{A}. It prescribes the set of monotone functions from $\calP (A)$ to $\calP (A)$. Various combinations of effective functions produce an effective function, such boolean combination and fixpoint of \textit{function transformers}, that is operators from \texttt{effective\_fn\_of A} to itself that is monotone with respect to the pointwise $\leq$ relation, as mentioned in \autoref{subsec:RGL_sem}. It is proven in Isabelle that least and greatest fixpoints of such operators are themselves effective functions.
+
+One interesting definitional issue in implementing these fixpoints involves arbitrary union and intersection of sets. To be precise, by Knaster-Tarski theorem, a monotone operator $F$ on a powerset lattice $\calP(A)$ has least fixpoint given by 
+
+\[\bigcap\{u\in \calP(A): F(u) \leq u\}\]
+
+When the family $\{u\in \calP(A): F(u) \leq u\}$ is empty, we have $\bigcap \emptyset = \bigwedge\emptyset = A$, because any set is a lower bound of an empty family of subsets and the greatest among them is the whole set. However, Isabelle's native $\bigcap$ operator does not recognize the universe $A$ over which we take intersection. Instead we define
+
+\begin{bdefinition}[Ambient Intersection]
+\texttt{ambient\_inter}
+
+$amb\_inter(A,F) = \{x\in A: \forall S \in F, x\in S\}$
+    
+\end{bdefinition}
+
+parameterized over a universe $A$. When $F$ is the empty family, $amb\_inter$ returns the entire $A$ as required.
+
+Dually, the same issue does not arise for unions $\bigcup$. This is because $\bigcup \emptyset = \bigvee\emptyset = \emptyset$, and empty set is recognizable in Isabelle for any universe.
+
+\subsection{Lattice Infrastructure for Semantic Fixpoints}
+\label{subsec:lattice_locale}
+As introduced in \autoref{subsec:GLs_sem}, we use $\calW(S)$ to represent the set of effective functions on $\calP(S)$. We then need to compute LFP/GFP of monotone operators on $\W(S)$ itself, for example the interpretation operator for recursion games in \autoref{subsec:RGL_sem}
+
+\[\N\ddl \Rec x. g\ddr^I=\mu q.(\N\ddl g\ddr^{I[x\coloneq q]})\]
+
+where $q\mapsto \N\ddl g\ddr^{I[x\coloneq q]}$ is a monotone operator on $\W(|\N|)$. If we solely unpack the point-wise order in $\W(|\N|)$ we get the following equality for a monotone $T:\W(|\N|) \rightarrow \W(|\N|)$
+
+\[ (\LFP T)(A) = \bigcap \{f(A): T(f)\leq f\}\]
+
+However, the engineering work required to build the infrastructure surrounding this $\LFP$ is enormous. This is wheere we leverage the Isabelle Algebra library \cite{HOL-Alg}, where a locale for complete lattices (Isabelle name \texttt{complete\_lattice}) is provided together with most lattice-theoretic facts, including the Knaster-Tarski theorem. The name \texttt{complete\_lattice} can also be used as a predicate to check an argument satisfies the axioms of a complete lattice, generating proof obligations automatically. In this thesis we have two major instances where this predicate is used. Firstly, we have that the set of effective functions is a complete lattice. Secondly, we have that finite products of complete lattices form a complete lattice. This second use case may come as a surprise, but it has indeed been missing in the Algebra library, or anywhere else in Isabelle.
+
+We have the following definition of a record consisting of a set, a less-then relation and an equality relation. These are the basic ingredients of a lattice, and form the argument supplied to \texttt{complete\_lattice}.
+
+\begin{bdefinition}[Semantic Lattice]
+\texttt{semantic\_struct N}
+\label{def:sem_lat}
+
+The semantic lattice is a record parameterized over a neighborhood structure $\N$ where 
+\begin{enumerate}
+    \item (\texttt{carrier}) The underlying set is $\W(|N|)$
+    \item (\texttt{eq}) The equality relation is function equality
+    \item (\texttt{le}) The $\leq$ relation is point-wise less-than in $\calP (\N)$
+\end{enumerate}
+
+\end{bdefinition}
+
+In Isabelle, a record has named fields. For record supplied to \texttt{complete\_lattice}, the names are \texttt{carrier}, \texttt{eq}, \texttt{le} respectively. Notice these are ingredients for an ordered set. Naturally and intuitively, \texttt{complete\_lattice} asks us to prove some properties for \texttt{le}.
+
+\begin{blemma}[Semantic Lattice is Complete Lattice]
+
+The semantic lattice is a complete lattice.
+\end{blemma}
+\begin{proof}
+    Trivial
+\end{proof}
+
+After fitting $\W(|\N|)$ into the locale framework, we are able to call the Algebra library's least and greatest fixpoint operators, whose names are conveniently $\LFP$ and $\GFP$. Meanwhile, there is another definition of least/greatest fixpoint directly from \texttt{amb\_inter} and $\bigcup$ that we use for the semantics of \RGL{}, called \texttt{Lfp} and \texttt{Gfp} in Isabelle. They work only on effective functions. We can show in Isabelle that for a monotone operator $F$ over the semantic lattice, the native definition \texttt{Lfp}/\texttt{Gfp} corresponds with the generic $\LFP$/$\GFP$ (\texttt{semantic\_Lfp, semantic\_Gfp}).
+
+Now we consider product of complete lattices. The relevant Isabelle construct is \texttt{locale cart\_prod\_lattice}.
+
+\begin{bsnippet}[Product Lattice]
+The product lattice has the following code signature.
+
+\label{def:cart_prod_lattice}
+
+\begin{ttfamily}
+    locale cart\_product\_lattice =
+        
+        fixes Ls :: "'a gorder list"
+        
+        assumes Ls\_len\_pos: "length Ls > 0"
+        
+        and     Ls\_comp\_lat: "$\mathtt{\bigwedge}i. i\in\{1..\texttt{Length Ls}\} \longrightarrow \texttt{complete\_lattice} (Ls\ \mathtt{!}\ (i-1))$"
+\end{ttfamily}
+\end{bsnippet}
+
+In the product lattice structure, a list of ordered set \texttt{Ls} is used to store the member lattices. \texttt{Ls\_len\_pos} supposes that this list is non-empty. \texttt{Ls\_comp\_lat} supposes that each member of the list is a concrete complete lattice as given by \texttt{complete\_lattice}. The \texttt{!} operator is Isabelle's syntax for indexing into the list. $\{1..n\}$ is Isabelle's way to represent the set of natural numbers $\{1,\dots,n\}$.
+
+When $Ls = [L_1,\dots,L_n]$, the carrier of the product lattice is the product set $L_1\times\dots\times L_n$. In Isabelle, this is represented by functions from $\{1..length\ Ls\}$ to the union $\bigcup Ls$, where each vector $v$ has the property that $v(i)\in L_i$. The \texttt{eq} relation is function equality, and the \texttt{le} relation is point-wise less-than in $L_i$ for the $i$-th coordinate of a vector. These form the product lattice as an Isabelle record like the semantic lattice \autoref{def:sem_lat}. It has name \texttt{card\_prod Ls}. The lemma that proves that the product lattice is a complete lattice says \texttt{complete\_lattice (cart\_prod\_lattice Ls)}. Now we can use the generic fixpoint operators $\LFP$/$\GFP$ to reason with monotone operators on product lattices. This is very important infrastructure for the generalized Beki\v{c} principle in \autoref{chp:meta_fml}.
+
+Having established the formal infrastructure, we now turn to the semantic translations establishing equiexpressiveness.

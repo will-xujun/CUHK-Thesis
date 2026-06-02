@@ -1,0 +1,9 @@
+% !TEX root = ../thesis.tex
+
+Game logic with sabotage is an extension of Parikh's propositional game logic and is recently shown to be equiexpressive with the modal $\mu$-calculus \cite{Wafa_2024}. In this thesis, we provide a new formalization of game logic with sabotage and the modal $\mu$-calculus, and prove their equiexpressiveness in the theorem prover Isabelle. The development has three stages, which represent successive aspects of contribution beyond the original mathematics work:
+\begin{enumerate}
+    \item Two more general logics, recursive game logic and fixpoint logic with chop, are formalized and proven equiexpressive. A precise criterion for syntactic validity is defined and verified.
+    \item A generalized Beki\v{c} principle is precisely stated, proven mathematically and then formalized.
+    \item Game logic with sabotage and modal $\mu$-calculus are realized as inductive subsets of recursive game logic and fixpoint logic with chop respectively and then proven equiexpressive.
+\end{enumerate}
+This work establishes a formal link between game logic with sabotage and $\mu$-calculus. One immediate application is that all model-theoretic properties transfer between the two logics for free. A more distant application is model-checking based on game logic, after proof calculi are formalized in future work.

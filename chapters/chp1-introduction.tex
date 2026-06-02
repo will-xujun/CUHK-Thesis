@@ -1,0 +1,128 @@
+% !TEX root = ../thesis.tex
+
+\chapter{Introduction} \label{chp:intro}
+The use of formal logic to describe program behaviours is an old idea. Early works by Engler, Floyd, Hoare and Salwicki \cite{Engeler1959}\cite{Floyd1993}\cite{Hoare1969}\cite{Salwicki1970} have developed into entire research fields, where automated and interactive verification tools abound. Examples of tools include theorem provers [citation needed], model-checkers [citation needed] and static analyzers [citation needed]. One important consideration in this development is the correctness of the metatheory of the object logics underlying these tools. We cannot deploy an automated model-checker to the industry, risking to have a loophole in the soundness proof of its underlying logical inference rules.
+
+This need for correctness has prompted the development of proof engineering specifically for formal logics. As the mathematical proofs involving such logics are too detailed and many to be checked by hand, one working pipeline is to define the syntax and semantics of an object logic inside a theorem prover and code up its metatheory. This provides formal proof of correctness of the metatheory. Proofs in mathematical papers almost always hide an enormous amount of detail, and proof engineers can very often uncover mistakes large enough so that mathematical definitions have to be altered. This highlights the potency of applying proof mechanization to logic themselves. Notable proof engineering projects for foundational logics underlying proof assistants include MetaCoq, Isabelle metalogic, differential dynamic logic formalization, and a recent Lean4Lean project \cite{Metacoq}\cite{Isabellemeta}\cite{formalDDL}.
+
+\section{Game Logic with Sabotage}
+\label{sec:intro_GLs}
+
+This thesis deals with game logic with sabotage (\GLs{}), a logic of games extending ordinary program logics. A computer program can be viewed a single-player game with choices on branching and repetition. Extending this notion to two-player game, we consider two agents, Angel and Demon, both equipped with the ability to execute basic code and make choices on branching and repetition. This is relevant in the setting of adversarial dynamics, for example two interacting autonomous robots or protocol-hacker in cybersecurity. A recent introduction and metatheory development of \GLs{} is given in \cite{Wafa_2024}. It has been proven that \GLs{} is equiexpressive to $\Lmu{}$, the modal $\mu$-calculus, which is a very expressive logic for specifying fixpoints of monotone operators on lattices. A typical \GLs{} game is
+
+\[ (\sim a^d \cap \sim b^d) ; (a\cup b) \]
+
+which describes a simple game of crossing bridges. At the start of the game, Demon chooses to burn a bridge $a$ or $b$, by playing one sabotage action of his choosing, from $\sim a^d, \sim b^d$. Then Angel must choose a bridge $a$ or $b$ to cross. 
+
+A \GLs{} logical formula is a modal logic formula with games as modal operator. If Angel merely wants to cross any bridge, a \GLs{} logical formula that specifies this goal is 
+
+\[\langle(\sim a^d \cap \sim b^d) ; (a\cup b)\rangle \top\]
+
+where $\top$ is universal truth and $\langle\cdot\rangle$ indicates the existence of winning strategy for Angel. Indeed, one can see that Angel has a winning strategy, namely to cross the unburnt bridge. However, if Angel wants to reach a point where $P$ holds, and only bridge $a$ leads to $P$, then Demon has a strategy to prevent Angel from every achieving this goal. This is specified as
+
+\[\langle a\rangle P \wedge \langle b\rangle\neg P \rightarrow [(\sim a^d \cap \sim b^d) ; (a\cup b)] \neg P\]
+
+where $[\cdot]$ indicates the existence of winning strategy for Demon. Indeed, Demon can just burn bridge $a$.
+
+This intuitive example from \GLs{} reveals some features of the logic. Firstly, it is a modal logic, where modal operators are compound games and logical specifications are given as modal propositions. Secondly, the dual operator $(\cdot)^d$ indicates a flipping of roles and transfer of the right to make choices from Angel to Demon. Thirdly, a winning strategy for Angel is a way to resolve her choices such that no matter how Demon resolves his choices, she can always reach the goal. Fourthly, the sabotage operator $\sim a$ enacted in a play means a change of rules for $a$ in subsequent moves of the same play. These features combine to make \GLs{} very effective in specifying adversarial dynamics.
+
+\section{Formalization in Isabelle}
+The expressiveness of \GLs{} makes it an ideal foundation for the development of automated reasoning tools. Especially relevant is its equiexpressiveness to $\Lmu{}$, which has expressive power exceeding many other program logics. The equiexpressiveness is proven using semantics-preserving translations. For future automated reasoning tools to be trusted on a rigorous foudnation, it is worthwhile to verify the proof of equiexpressiveness in a theorem prover. The specific theorem prover chosen for this project is Isabelle/HOL. The reason for this choice is availability of mathematics libraries and author's expertise.
+
+The present work contributes the following items to the formalization space. There is one item which is more mathematical in nature. Note that \textit{formal} means computerized in a theorem prover, and \textit{formalization} means the process of computerizing some mathematical object.
+
+\begin{itemize}
+    \item A formal definition of the syntax and semantics of the logics \GL{}, \GLs{}, \RGL{}, \rlGL{}, \FLC{}, $\Lmu{}$.
+    \item Formal translations from \RGL{} to \FLC{} and from \FLC{} to $\RGL{}$, along with formal proofs of soundness and a formal proof that these restrict to translations between \rlGL{} and $\Lmu{}$. 
+    \item A formal translation from \GLs{} to \rlGL{}, along with a proof of soundness.
+    \item For the translation from \GLs{} to \rlGL{}, a new mathematical generalization of the Beki\v{c} principle, along with its mathematical and formal proof.
+\end{itemize}
+
+\newpage
+
+\section{Roadmap of Logics and Translations}
+\label{sec:notation}
+
+Some necessary abbreviations for logics that appear throughout the thesis are recorded as follows.
+
+\medskip
+
+\begin{tabular}{ll}
+    \GL{} & game logic\\
+    \GLs{} & game logic with sabotage\\
+    \RGL{} & recursive game logic\\
+    \rlGL & right-linear game logic \\
+    \FLC{} & fixpoint logic with chop\\
+    $\Lmu{}$ & modal $\mu$-calculus\\
+\end{tabular}
+
+\medskip
+
+The overarching relationships between all the logics considered in this thesis is shown in \autoref{fig:logics}. \GLs{} is not translated directly translated into $\Lmu{}$ because of their difference in representing fixpoints. \GLs{} uses repetition, while $\Lmu{}$ uses structured recursion. A direct translation would be cumbersome in that semantical sabotage contexts \textit{and} repetition games need to be taken care of in one go. Hence the translation proceeds in two steps: first to go through $\GLsrl{c}{(\cdot)}$ to \rlGL{}, which unfolds and inlines the repetition at the syntactic level accounting for sabotage contexts; second through $\rlL{(\cdot)}$ to $\Lmu{}$, which further inlines higher-order fixpoints to first-order ones. The first translation step lifts semantics to syntax, and a generalized Beki\v{c} principle unavoidably needs to be formally proved to express the sabotage contexts simultaneously. See a brief explanation of this in the beginning of \autoref{sec:trans_GLs_rlGL}.
+
+\RGL{} is an important logic in this thesis that serves as a technical intermediary between \GLs{} and $\Lmu{}$. It admits back-and-forth semantics preserving translations with \FLC{}, which is a higher-order analogue of $\Lmu{}$ augmented with the chop operator. The translations between \FLC{} and \RGL{} are dubbed $\sharp$ and $\flat$ respectively. Its right-linear fragment, \rlGL{}, is equiexpressive to \GLs{}. The reason for this is akin to the correspondence between loops and tail-recursion in computer programming - one can convert between them.
+
+\RGL{} has a close correspondence with \FLC{}, which shares many syntactic and semantic similarities. This is why the translation first goes to the more general \FLC{}, and is then restricted to the fragment $\Lmu{}$. 
+
+$\Lmu{}$ is in itself a very important logic in literature, but in this thesis it is an inductively defined subset of \FLC{}, and \rlGL{} is an inductively defined subset of \RGL{}. They inherit the semantics preserving translations from those between \FLC{} and \RGL{}. $\sharp$ restricts to \rlGL{} and automatically has image landing in $\Lmu{}$. $\flat$ requires a slight modification to \reflectbox{$\flat$} to land in \rlGL{}. 
+
+\GL{} does not show up because it is a standalone subset of \rlGL{} with translations mentioned in more detail in \cite{Wafa_2024}. 
+
+All syntax and semantics are introduced in \autoref{chp:preliminaries}. All translations and soundness proofs are introduced in \autoref{chp:meta_fml}.
+
+\bigskip
+\begin{figure}
+\centering
+\begin{tikzpicture}[node distance=2.2cm and 3.0cm]
+  % Nodes
+  \node[logicnode] (Lmu) {$\Lmu{}$};
+  \node[logicnode, right=of Lmu] (FLC) {\FLC{}};
+  \node[logicnode, below=of Lmu] (rlGL) {\rlGL{}};
+  \node[logicnode, right=of rlGL] (RGL) {\RGL{}};
+  \node[logicnode, below=of rlGL] (GLs) {\GLs{}};
+
+  % Horizontal inclusions
+  \draw[relation] (Lmu) -- node[edgelabel, above] {$\subseteq$} (FLC);
+  \draw[relation] (rlGL) -- node[edgelabel, above] {$\subseteq$} (RGL);
+
+  % Left vertical adjoint-style arcs
+  \draw[morphism, bend right=18]
+    (Lmu) to node[edgelabel, left] {$\sharp$} (rlGL);
+  \draw[morphism, bend right=18]
+    (rlGL) to node[edgelabel, right] {\reflectbox{$\flat$}} (Lmu);
+
+  % Lower-left arcs between rlGL and GL_s
+  \draw[dottedmorphism, bend right=18]
+    (rlGL) to node[edgelabel, left] {$\natural$} (GLs);
+  \draw[morphism, bend right=18]
+    (GLs) to node[edgelabel, right] {$^{c}$} (rlGL);
+
+  % Right vertical arcs
+  \draw[morphism, bend right=18]
+    (FLC) to node[edgelabel, right] {$\sharp$} (RGL);
+  \draw[morphism, bend right=18]
+    (RGL) to node[edgelabel, left] {$\flat$} (FLC);
+\end{tikzpicture}
+    \caption{Relations between Logics}
+    \label{fig:logics}
+\end{figure}
+
+
+
+
+\section{Organization of the Thesis}
+As is true for any formalization thesis, there is an issue of how to juxtapose mathematical and concrete Isabelle content. This thesis adopts a symbolic side-by-side approach. We keep a smooth mathematics narrative, and give pointers to the parts of formalized mathematics beside the mathematical content itself. As a mathematics thesis, in almost nowhere do we display actual Isabelle code. However, the mathematics and proofs are written with maximal resemblance to the actual Isabelle statements in mind. The formal definitions, lemmas, theorems with concrete Isabelle instantiation are represented in a boxed environment:
+
+\begin{blemma}[Good Lemma]
+\texttt{Lemma\_formal\_name}
+
+    A lemma rigorously proven with concrete Isabelle code.
+\end{blemma}
+
+when a formalized definition/lemma/theorem appears, \texttt{Lemma\_formal\_name} is the actual name of the Isabelle code for this object. Names such as \texttt{Lemma\_formal\_name} are also sprinkled into paragraphs to indicate auxiliary Isabelle code. Contrary to this, purely mathematical lemmas appear in a normal theorem style:
+
+\begin{lemma}[Random Lemma]
+    2 is even.
+\end{lemma}
+
+This thesis proceeds as follows. In \autoref{chp:preliminaries}, all syntax and semantics of the relevant logics are introduced. \autoref{chp:core_fml} discusses some formalization issues of the syntax and semantics. \autoref{chp:meta_fml} introduces the metatheory of expressiveness between the logics in terms of semantics preserving translations. The formalization is discussed along with the mathematics. Crucially a generalized Beki\v{c} principle is introduced. \autoref{chp5:mech_exp} discusses general proof mechanization issues that are not tied to any specific mathematical concept. \autoref{chp:conc} concludes and points to future work.

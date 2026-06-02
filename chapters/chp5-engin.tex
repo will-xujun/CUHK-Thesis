@@ -1,0 +1,83 @@
+% !TEX root = ../thesis.tex
+
+\chapter{Mechanization Experience}
+
+\label{chp5:mech_exp}
+
+This chapter discusses various proof engineering issues not directly related to any specific mathematical content.
+
+\section{Substitution}
+Substitution is ubiquitous in dealing with free variables. In this thesis there are two translations where syntactic substitutions are heavily used: the translation from \RGL{} to \FLC{}, where variables $u,v$ are substituted by their game continuations, and the translation from \GLs{} to \rlGL{}, where variables $y_\bullet$ are substituted by their game continuations.
+
+However, two very different substitution mechanisms are implemented in Isabelle. For the first translation, the substitution is hard-coded into the function:
+
+\begin{bdefinition}[Substitution in \FLC{}]
+
+\texttt{FLC\_subst}
+
+\[\texttt{FLC\_subst}(\psi,x) = \texttt{if } x=u \vee x=v \texttt{ then } \psi \texttt{ else } x\]
+    
+\end{bdefinition}
+
+There is no flexibility for what can be substituted; both $u$ and $v$ and only they are substituted. This is a rigid and basic approach but works when the variables under consideration are few and known.
+
+It is not possible to use the same approach when substituting an uncertain number of variables $y_\bullet$. For this, a record $\sigma$ of type \texttt{ident $\mathtt{\rightharpoonup}$ RGL\_game} is used as an abstract substitution menu. $\sigma(x) = \texttt{None}$ indicates that $x$ is not substitutable, while $\sigma(x) = \texttt{Some }g$ replaces free $x$ by $g$. Then $\sigma$ is carried around by a recursive substitution definition. We present a few cases below.
+
+\begin{bdefinition}[Substitution in \RGL{}]
+
+\texttt{subst\_gm, subst\_fml}
+
+\begin{align*}
+& \texttt{subst\_gm}(\sigma,\texttt{RGL\_Var }x) = \texttt{case } \sigma(x) \texttt{ of None => RGL\_Var } x \texttt{ | Some g' => g'} \\
+& \texttt{subst\_gm}(\sigma,\Rec x. g) = \Rec x. \texttt{subst\_gm} (\sigma[x\mapsto \bot], g)
+\end{align*}
+\end{bdefinition}
+
+This is a higher-order definition and can accommodate any number of variables. Isabelle natively supports distinguishing variables by name and a record update operation $\sigma[x\mapsto \bot]$ which conveniently deletes a key-value pair. This avoids low-level implementations such as the De-Bruijn index, which would complicate the project in an unnecessary way.
+
+The heaviest use case of this sophisticated substitution mechanism is iterated substitution \autoref{def:iter_sub}. This comprises layers upon layers of substitution with heavy use of conditionals and persistent recursive calls. It would not have been possible to implement without Isabelle's strong support for partial map modifications and variable distinction.
+
+Substitution is proven to be compatible with a number of properties. A non-exhaustive list of such properties are closed tests \texttt{RGL\_tt\_closed}, even number of dual operators in scope \texttt{RGL\_even\_dual}, right-linearity \texttt{rl\_gm\_in and rl\_gm}. The proof usually proceeds along this line: suppose we have a property $P$ that we want to prove compatible with substitution. Suppose an \RGL{} expression $g$ satisfies $P$. Suppose that any $\sigma$ has image $\sigma(x)$ satisfying $P$ whenever $x$ is both in the domain of $\sigma$ and the set of free variables of $g$. Then we do induction on the structure of $g$, generalizing over $\sigma$ for use in the recursion case. The proof would then follow by simplification. It would be a good engineering exercise to abstract over $P$ and come up with a generic substitution library, similar to \texttt{autosubst} of Coq.
+
+\section{Termination Arguments}
+There are three definitions in this project where termination cannot be guaranteed by Isabelle's \texttt{fun} construct. In such a case, a ranking function has to be given explicitly to show termination. 
+
+\subsection{Iterated Substitution Termination}
+The definition of \autoref{def:iter_sub} is not automatically terminating for Isabelle because there is not one obviously decreasing argument. Recall the definition
+\begin{align}
+    iter\_sub(i,\vec{x},\vec{\alpha},B)
+    = \Rec x_i. (\alpha_i[\forall k\in B-\{i\}, x_k\mapsto iter\_sub(k,\vec{x}, \vec{\alpha},B-\{i\})])
+\end{align}
+The actual Isabelle definition contains one additional layer of check in front:
+\begin{align}
+    iter\_sub(i,\vec{x},\vec{\alpha},B)
+    = \texttt{if } i\notin B \texttt{ then undefined else }
+    \\
+    \Rec x_i. (\alpha_i[\forall k\in B-\{i\}, x_k\mapsto iter\_sub(k,\vec{x}, \vec{\alpha},B-\{i\})])
+\end{align}
+
+This makes sure that recursive calls decreases on the argument $B$. The termination argument therefore rests on the monotone decreasing property of the ranking function $(\_,\_,\_,B)\mapsto |B|$ through deeper and deeper recursive calls. 
+
+\subsection{Nested Fixpoint Termination}
+
+The nested fixpoint \autoref{def:nested} is the semantic mirror of iterated substitution, and it is terminating in a similar manner. The actual Isabelle definition of $nested$ is
+\begin{multline}
+        nested(n,i,B,f) \equiv \texttt{if } i\in \dom B \texttt{ then undefined else}\\
+        \mu x_i.f_i(\lambda j. [?j=i:x_i;?(B(j)\neq \bot): B(j); nested(n,j,B(i\mapsto x_i), f)])
+\end{multline}
+
+Observe that in each recursive call, $\dom B$ will decrease because it will be removed in the $B$ argument by the update $B(i\mapsto x_i)$. $nested$ is terminating because of this.
+
+\subsection{Termination of $\GLsrl{c}{(\cdot)}$}
+The translation from \GLs{} to \RGL{} is not obviously terminating because of the Demonic test case: $\GLsrl{c}{(\DTest\phi)}=\GLsrl{c}{\overline \phi}\cup y_c$. It is not clear for Isabelle that syntactic complementing $\phi$ gives a formula that is of strictly lower metric than $\DTest\phi$. To solve this problem, we use the rank of \GLs{} syntax \autoref{def:GLs_rk}. It is easily provable by structural induction that $\GLsrl{c}{(\cdot)}$ produces expressions of strictly lower rank, if the input is of normal form and has rank $>1$. For those of rank $1$, the expression is already atomic. This essentially proves termination for $\GLsrl{c}{(\cdot)}$.
+
+\section{Infrastructure for Vectors}
+We often need to convert between vectors, which are functions from $\{1..n\}$ to the appropriate codomain (usually disjoint union of complete lattices with restriction on the coordinates), and lists. This is because arguments supplied to \texttt{iter\_sub} and \texttt{nested} are natively lists, but the caller of these two may be using another data structure. The advantage of using lists as input is the easily use of induction rules on the length of lists. The same cannot be said for Isabelle functions, whose domains need to be distinguished in order for such an induction rule to hold. The advantage of Isabelle functions for representing vectors is easy updating. Therefore, we have defined two conversions, \texttt{v\_to\_l} (vector-to-list) and \texttt{l\_to\_v} (list-to-vector). However, we want them to be mathematically the same thing, hence it may be good to develop a data structure that supports both easy update and easy induction on some size parameter.
+
+On the other hand, while functions support easy update, it is observed during proof implementation that Isabelle (or other proof assistants alike) is inflexible in manipulating arithmetic expressions. Very often, complicated case distinctions that are intuitive to the human eye must be written very explicitly and step-checked manually. Presumably, this complication can be partially alleviated by writing the appropriate Isabelle introduction rules and automated tactics. That would be good exercise and would contribute towards an agile treatment of lists and vectors.
+
+\section{Use of Automated Reasoning}
+The Isabelle \texttt{sledgehammer} can be proof engineer's greatest weapon as well as a pitfall. It often supplies magic one-step proofs to complicated reasoning steps where the proof engineer has supplied all prerequisite lemmas. This is advantageous for obvious reasons, but could make proof engineers neglect important links between theories and become reliant on the reuse of the hammer at such links. This would make the proof less robust and resilient to a change in specification, at which point manual intervention would require more effort. There is also a trust issue with automated proofs, where proof engineer is not willing to leave proof detail to external SMT solvers. However, this project has pervasive uses of \texttt{sledehammer} and is a good example of how automated tools speed up proof development by orders of magnitude. This is because with conscientious development and guidance, proofs found automatically are often based on \texttt{auto} or \texttt{simp}, which does not rely on external solvers. Another use of \texttt{sledgehammer} is to avoid pitfalls in false statements. If \texttt{sledgehammer} fails in 30 seconds with no proof found, then rethink on the correctness of the statement to be proved. If the statement is indeed incorrect, it would spare proof engineers hours of heading in the wrong direction.
+
+\section{Scale of Development}
+The current Isabelle development is rather large, sitting at $\sim 20$k LoC. The man-months spent in achieving the progress so far is around 9. It is uncertain how much of a length reduction could occur if one makes elegant all proofs and iron out the details without a systemic implementation of automated tactics.

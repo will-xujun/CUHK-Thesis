@@ -1,0 +1,220 @@
+% !TEX root = ../thesis.tex
+% packages
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{mathrsfs}
+\usepackage{mathtools}
+\usepackage{simplebnf}
+\usepackage{caption}
+\usepackage{mathpartir}
+\usepackage{stackengine}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[shortlabels,inline]{enumitem}
+
+% figure
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usetikzlibrary{positioning,arrows.meta}
+\usepackage{float}
+\usepackage{graphicx}
+\graphicspath{ {figures/} }
+
+\tikzset{
+  logicnode/.style={
+    rectangle,
+    rounded corners=2pt,
+    draw=black,
+    fill=gray!8,
+    minimum width=1.55cm,
+    minimum height=8mm,
+    align=center,
+    font=\normalsize
+  },
+  relation/.style={draw=black, line width=0.6pt},
+  morphism/.style={-{Stealth[length=2.4mm]}, draw=black, line width=0.7pt},
+  dottedmorphism/.style={morphism, dotted, line width=0.9pt},
+  edgelabel/.style={font=\normalsize, fill=white, inner sep=1.2pt}
+}
+
+% layout
+\footskip 4.ex
+% ***********************************************************************
+\newcommand{\Normalstretch}{1.0} %change to define space between lines
+\renewcommand{\baselinestretch}{\Normalstretch}
+\newenvironment{singlespace}
+{\renewcommand{\baselinestretch}{1} \small \normalsize}
+{\renewcommand{\baselinestretch}{\Normalstretch} \small \normalsize}
+\renewcommand{\arraystretch}{1.2}
+% ***********************************************************************
+\newcommand{\baseenvskip}{\baselineskip 2mm}
+\usepackage[
+  paper=a4paper,
+  inner=2.5cm,  % Replaces \oddsidemargin
+  outer=2.5cm,  % Replaces \evensidemargin
+  top=2.5cm,
+  bottom=2.5cm
+]{geometry}
+
+
+
+% ------------------------------ reference style ----------------------------- %
+\usepackage[numbers,sort]{natbib} 	% automatically sort the citations
+%\renewcommand\bibname{Bibliography}
+
+% ------------------------------ footer & header ----------------------------- %
+% \usepackage{fancyhdr}
+% % def headstyles
+% \newcommand{\headstyle}{%
+% 	\fancyhead[L]{}
+% 	\fancyhead[C]{}
+% 	\fancyhead[R]{}
+% }
+% % def footstyles
+% \makeatletter
+% \newcommand{\footstyle}{%
+% 	\fancyfoot[L]{}
+% 	\fancyfoot[C]{\thepage}
+% 	\fancyfoot[R]{}
+% }
+% \newcommand{\authorfootstyle}{%
+% 	\fancyfoot[L]{}
+% 	\fancyfoot[C]{\thepage}
+% 	\fancyfoot[R]{}
+% }
+% \makeatother
+% % set global pagestyle
+% \pagestyle{fancy}
+% \fancyhf{} % clear the orginal headfoot style
+% \headstyle
+% \footstyle
+% % def first-page pagestyle
+% \fancypagestyle{firstpage}{%
+% 	\fancyhf{}
+% 	\headstyle
+% 	\authorfootstyle
+% }
+% % def main pagestyle
+% \fancypagestyle{main}{%
+% 	\fancyhf{}
+% 	\headstyle
+% 	\footstyle
+% }
+%\renewcommand{\headrulewidth}{0pt}
+%\renewcommand{\footrulewidth}{0.4pt}
+%\renewcommand{\headrule}{\rule{\textwidth}{0.4pt}}
+
+% appendix
+\usepackage{appendix}
+
+% -------------------------- hyperlinks & bookmarks -------------------------- %
+\usepackage{aliascnt} %  \autoref
+\usepackage[pdfusetitle,
+bookmarks=true,
+pagebackref,
+colorlinks,
+linkcolor=blue,
+citecolor=blue,
+urlcolor=blue]{hyperref}
+
+% ------------------------------- environments ------------------------------- %
+\usepackage{amsthm}
+\usepackage{mdframed}
+\newtheorem{dummy}{***}[section]
+
+\theoremstyle{plain}
+\newaliascnt{theorem}{dummy}
+\newtheorem{theorem}[theorem]{Theorem}
+\aliascntresetthe{theorem}
+\providecommand*{\theoremautorefname}{Theorem}
+\newaliascnt{proposition}{dummy}
+\newtheorem{proposition}[proposition]{Proposition}
+\aliascntresetthe{proposition}
+\providecommand*{\propositionautorefname}{Proposition}
+\newaliascnt{corollary}{dummy}
+\newtheorem{corollary}[corollary]{Corollary}
+\aliascntresetthe{corollary}
+\providecommand*{\corollaryautorefname}{Corollary}
+\newaliascnt{lemma}{dummy}
+\newtheorem{lemma}[lemma]{Lemma}
+\aliascntresetthe{lemma}
+\providecommand*{\lemmaautorefname}{Lemma}
+\newaliascnt{conjecture}{dummy}
+\newtheorem{conjecture}[conjecture]{Conjecture}
+\aliascntresetthe{conjecture}
+\providecommand*{\conjectureautorefname}{Conjecture}
+
+\theoremstyle{definition}
+\newaliascnt{definition}{dummy}
+\newtheorem{definition}[definition]{Definition}
+\aliascntresetthe{definition}
+\providecommand*{\definitionautorefname}{Definition}
+\newaliascnt{example}{dummy}
+\newtheorem{example}[example]{Example}
+\aliascntresetthe{example}
+\providecommand*{\exampleautorefname}{Example}
+
+\theoremstyle{remark}
+\newaliascnt{remark}{dummy}
+\newtheorem{remark}[remark]{Remark}
+\aliascntresetthe{remark}
+\providecommand*{\remarkautorefname}{Remark}
+
+\newtheorem{exercise}{Exercise}[section]
+\providecommand*{\exerciseautorefname}{Exercise}
+
+\newtheoremstyle{break}% name
+  {0pt}%         Space above, empty = `usual value'
+  {0pt}%         Space below
+  {\itshape}% Body font
+  {}%         Indent amount (empty = no indent, \parindent = para indent)
+  {\bfseries}% Thm head font
+  {.}%        Punctuation after thm head
+  { } % HEADSPACE}% Space after thm head: \newline = linebreak
+  {}%         Thm head spec
+
+\theoremstyle{break}
+\newtheorem{dummyy}{***}[chapter]
+\newcommand*{\dummyyautorefname}{Dummyy}
+
+\newaliascnt{bdefinition}{dummyy}
+\newmdtheoremenv[%
+  topline=true,
+  rightline=true,
+  leftline=true,
+  bottomline=true]{bdefinition}[bdefinition]{Definition}
+\aliascntresetthe{bdefinition}
+\providecommand*{\bdefinitionautorefname}{Definition}
+
+\newaliascnt{blemma}{dummyy}
+\newmdtheoremenv[%
+  topline=true,
+  rightline=true,
+  leftline=true,
+  bottomline=true]{blemma}[blemma]{Lemma}
+\aliascntresetthe{blemma}
+\providecommand*{\blemmaautorefname}{Lemma}
+
+\newaliascnt{btheorem}{dummyy}
+\newmdtheoremenv[%
+  topline=true,
+  rightline=true,
+  leftline=true,
+  bottomline=true]{btheorem}[btheorem]{Theorem}
+\aliascntresetthe{btheorem}
+\providecommand*{\btheoremautorefname}{Theorem}
+
+\newaliascnt{bsnippet}{dummyy}
+\newmdtheoremenv[%
+  topline=true,
+  rightline=true,
+  leftline=true,
+  bottomline=true]{bsnippet}[bsnippet]{Snippet}
+\aliascntresetthe{bsnippet}
+\providecommand*{\bsnippetautorefname}{Snippet}
+
+% ---------------------------------- autoref --------------------------------- %
+\renewcommand{\sectionautorefname}{Section}
+\renewcommand{\chapterautorefname}{Chapter}
+%\renewcommand{\equationautorefname}{Equation}
+
+% ------------------------------------ misc ----------------------------------- %
+\allowdisplaybreaks

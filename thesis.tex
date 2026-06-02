@@ -1,0 +1,78 @@
+%!TEX TS-program = xelatex 
+% CUHKthesis @ https://github.com/zfengg/CUHKthesis
+%
+%	A simple tex template for the thesis at CUHK.
+%
+% Author: Zhou Feng @ 15/12/2022
+% ---------------------------------------------------------------------------- %
+%                                   preamble                                   %
+% ---------------------------------------------------------------------------- %
+\documentclass[12pt]{report}
+% ---------------------------- settings & commands --------------------------- %
+\input{preamble/settings.tex}
+\input{preamble/cmds.tex}
+\input{preamble/usrcmds.tex}
+% ----------------------------------- misc ----------------------------------- %
+
+% ----------------------------------- info ----------------------------------- %
+\title{FORMALIZING GAME LOGIC WITH SABOTAGE}
+\titlezh{中文标题}
+\author{XU, Jun}
+\degree{Master of Philosophy}
+\programme{Mathematics}
+\institution{The Chinese University of Hong Kong}
+\date{May 2026}
+\committee{%
+	Professor LAST First (Chair)\\
+	Professor Luo Chenyun (Thesis Supervisor)\\
+	Professor Jin Bangti (Committee Member)\\
+	Professor Yang Ziquan (Committee Member)%
+}
+
+% ---------------------------------------------------------------------------- %
+%                                   document                                   %
+% ---------------------------------------------------------------------------- %
+\begin{document}
+% -------------------------------- first pages ------------------------------- %
+\maketitle % titlepage
+
+\pagenumbering{roman}
+\setcounter{page}{0}
+
+\makeabstract % english abstract
+% \makeabstractChinese chinese abstract
+
+\makeacknowledgement % acknowledgement 
+
+\hypersetup{linkcolor=black}
+\addtocbm
+\tableofcontents % toc
+
+%\addloftotoc
+%\listoffigures % lof
+
+%\addlottotoc
+%\listoftables % lot
+\hypersetup{linkcolor=blue}
+% ------------------------------- main chapters ------------------------------ %
+\clearpage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\include{chapters/chp1-introduction.tex}
+\include{chapters/chp2-preliminaries.tex}
+\include{chapters/chp3-corefml.tex}
+\include{chapters/chp4-transfml.tex}
+\include{chapters/chp5-engin.tex}
+\include{chapters/chp6-conc.tex}
+
+% --------------------------------- appendix --------------------------------- %
+\appendix
+
+% ------------------------------- bibliography ------------------------------- %
+% \bibliographystyle{reference/bst/myplainnat.bst}
+\bibliographystyle{plain}
+\addbibtotoc
+\bibliography{reference/reference.bib}
+
+\end{document}
